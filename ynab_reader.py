@@ -5,8 +5,9 @@ from dotenv import load_dotenv
 # Cargar variables de entorno desde el archivo .env
 load_dotenv()
 
-# Obtener el token de acceso desde las variables de entorno
+# Obtener el token de acceso y el ID del presupuesto principal desde las variables de entorno
 YNAB_ACCESS_TOKEN = os.getenv("YNAB_ACCESS_TOKEN")
+MAIN_BUDGET_ID = os.getenv("MAIN_BUDGET_ID")
 
 # Definir la URL base de la API de YNAB
 BASE_URL = "https://api.youneedabudget.com/v1"
@@ -15,15 +16,6 @@ BASE_URL = "https://api.youneedabudget.com/v1"
 headers = {
     "Authorization": f"Bearer {YNAB_ACCESS_TOKEN}"
 }
-
-def get_budgets():
-    url = f"{BASE_URL}/budgets"
-    response = requests.get(url, headers=headers)
-    if response.status_code == 200:
-        return response.json()["data"]["budgets"]
-    else:
-        print(f"Error al obtener presupuestos: {response.status_code}")
-        return None
 
 def get_accounts(budget_id):
     url = f"{BASE_URL}/budgets/{budget_id}/accounts"
@@ -34,25 +26,23 @@ def get_accounts(budget_id):
         print(f"Error al obtener cuentas: {response.status_code}")
         return None
 
-def main():
-    budgets = get_budgets()
-    if budgets:
-        print("Presupuestos disponibles:")
-        for budget in budgets:
-            print(f"- {budget['name']} (ID: {budget['id']})")
+def format_currency(value):
+    # Los balances en YNAB están en "mil" unidades (ej. 2766760 representa $2,766.76)
+    return f"${value / 1000:,.2f}"
 
-        # Tomar el primer presupuesto para la demostración
-        budget_id = budgets[0]["id"]
-
-        accounts = get_accounts(budget_id)
-        if accounts:
-            print("\nCuentas disponibles:")
-            for account in accounts:
-                print(f"- {account['name']}: {account['balance']} (ID: {account['id']})")
-        else:
-            print("No se pudieron obtener las cuentas.")
+def print_credit_card_balances(budget_id):
+    accounts = get_accounts(budget_id)
+    if accounts:
+        print("\nBalances de las cuentas de tarjetas de crédito (no cerradas):")
+        for account in accounts:
+            if account['type'] == 'creditCard' and not account['closed']:
+                formatted_balance = format_currency(account['balance'])
+                print(f"- {account['name']}: {formatted_balance}")
     else:
-        print("No se pudieron obtener los presupuestos.")
+        print("No se pudieron obtener las cuentas.")
+
+def main():
+    print_credit_card_balances(MAIN_BUDGET_ID)
 
 if __name__ == "__main__":
     main()
