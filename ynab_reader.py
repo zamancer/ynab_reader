@@ -43,7 +43,7 @@ def consolidate_balances(main_accounts, secondary_accounts):
     return consolidated
 
 def consolidate_credit_card_balances(consolidated, account):
-    if account['type'] == 'creditCard' and not account['closed']:
+    if not account['closed']:
         if account['name'] in consolidated:
             consolidated[account['name']]['balance'] += account['balance']
             consolidated[account['name']]['name'] += " **"
