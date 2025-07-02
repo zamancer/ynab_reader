@@ -129,3 +129,6 @@ dmypy.json
 
 # ignore DS_Store files from any directory
 **/.DS_Store
+
+# ignore secret directory
+secrets/
