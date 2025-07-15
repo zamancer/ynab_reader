@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Alerta de Diferencias de Saldos</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        background: #f7f7f7;
+        color: #222;
+        margin: 0;
+        padding: 0;
+      }
+      .container {
+        background: #fff;
+        max-width: 600px;
+        margin: 40px auto;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.07);
+        padding: 32px 24px;
+      }
+      h1 {
+        color: #d7263d;
+        font-size: 1.6em;
+        margin-bottom: 0.5em;
+      }
+      p {
+        font-size: 1.05em;
+        margin-bottom: 1.2em;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 1.5em;
+      }
+      th,
+      td {
+        padding: 10px 8px;
+        text-align: left;
+      }
+      th {
+        background: #f2f2f2;
+        color: #333;
+        border-bottom: 2px solid #e0e0e0;
+      }
+      tr:nth-child(even) {
+        background: #fafafa;
+      }
+      .diff-positive {
+        color: #388e3c;
+        font-weight: bold;
+      }
+      .diff-negative {
+        color: #d7263d;
+        font-weight: bold;
+      }
+      .footer {
+        font-size: 0.95em;
+        color: #888;
+        margin-top: 2em;
+        text-align: center;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>🔔 Alerta de Diferencias de Saldos</h1>
+      <p>
+        Se detectaron diferencias entre los saldos de tus cuentas bancarias y
+        los saldos registrados en YNAB.<br />
+        Por favor revisa las siguientes cuentas:
+      </p>
+      <table>
+        <thead>
+          <tr>
+            <th>Cuenta</th>
+            <th>Saldo Banco</th>
+            <th>Saldo YNAB</th>
+            <th>Diferencia (%)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for account in accounts %}
+          <tr>
+            <td>{{ account["Cuenta"] }}</td>
+            <td>{{ account["Saldo"] }}</td>
+            <td>{{ account["YNAB"] }}</td>
+            <td>{{ account["PercentDiff"] }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <p>
+        Si alguna diferencia es esperada, puedes ignorar este mensaje.<br />
+        Si no, revisa tus movimientos recientes en YNAB y tu banco.
+      </p>
+      <div class="footer">
+        Este correo fue generado automáticamente por YNAB Reader.<br />
+        &copy; 2025
+      </div>
+    </div>
+  </body>
+</html>
