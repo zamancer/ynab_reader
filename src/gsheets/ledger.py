@@ -1,10 +1,11 @@
 import os
-from dotenv import load_dotenv
-import gspread
-from google.oauth2.service_account import Credentials
-from typing import List, Dict, Any
 from datetime import datetime
+from typing import Any
 from zoneinfo import ZoneInfo
+
+import gspread
+from dotenv import load_dotenv
+from google.oauth2.service_account import Credentials
 
 load_dotenv()
 
@@ -42,16 +43,16 @@ def get_worksheet(testing_flag: bool = False):
         worksheet = sheet.worksheet(worksheet_name)
         return worksheet
     except gspread.exceptions.WorksheetNotFound:
-        raise RuntimeError(f"Worksheet '{worksheet_name}' not found.")
+        raise RuntimeError(f"Worksheet '{worksheet_name}' not found.") from None
 
 
-def load_sheet_data(worksheet) -> List[Dict[str, Any]]:
+def load_sheet_data(worksheet) -> list[dict[str, Any]]:
     all_values = worksheet.get_all_values()
     if not all_values or len(all_values) < 2:
         return []
     header = all_values[0]
     data_rows = all_values[1:]
-    data = [dict(zip(header, row)) for row in data_rows]
+    data = [dict(zip(header, row, strict=False)) for row in data_rows]
     return data
 
 
@@ -66,7 +67,7 @@ def parse_currency_value(value: str) -> float:
     if not value or not isinstance(value, str):
         return 0.0
     cleaned = value.replace("$", "").replace(",", "").replace(" ", "").strip()
-    if cleaned == '' or cleaned == '-':
+    if cleaned == "" or cleaned == "-":
         return 0.0
     try:
         return float(cleaned)

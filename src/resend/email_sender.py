@@ -1,8 +1,10 @@
 import os
+from typing import Any
+
 from dotenv import load_dotenv
-import resend
 from jinja2 import Environment, FileSystemLoader, select_autoescape
-from typing import List, Dict, Any
+
+import resend
 
 load_dotenv()
 
@@ -15,7 +17,7 @@ TEMPLATES_DIR = os.path.join(
 
 def send_email(
     subject: str,
-    recipients: List[str],
+    recipients: list[str],
     html_content: str,
     sender: str = "YNAB Author <alan@zammx.com>",
 ):
@@ -28,7 +30,7 @@ def send_email(
     return resend.Emails.send(params)
 
 
-def send_balance_alert_email(recipients: List[str], context: Dict[str, Any]):
+def send_balance_alert_email(recipients: list[str], context: dict[str, Any]):
     env = Environment(
         loader=FileSystemLoader(TEMPLATES_DIR),
         autoescape=select_autoescape(["html", "xml"]),

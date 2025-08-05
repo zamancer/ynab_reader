@@ -10,3 +10,6 @@ google-auth
 requests==2.32.3
 resend==2.11.0
 Jinja2==3.1.6
+mypy
+ruff
+types-requests
