@@ -1,13 +1,14 @@
-import os
-from dotenv import load_dotenv
-import gspread
-from google.oauth2.service_account import Credentials
 import argparse
-from src.ynab.types import YNABEntry
-from typing import List
-from src.ynab.reader import get_consolidated_ynab_entries
-from datetime import datetime, timezone
+import os
+from datetime import datetime
 from zoneinfo import ZoneInfo
+
+import gspread
+from dotenv import load_dotenv
+from google.oauth2.service_account import Credentials
+
+from src.ynab.reader import get_consolidated_ynab_entries
+from src.ynab.ynab_types import YNABEntry
 
 # --- SETUP INSTRUCTIONS ---
 # 1. Install dependencies: pip install gspread google-auth python-dotenv
@@ -74,7 +75,7 @@ def load_sheet_data(worksheet):
     header = all_values[0]
     data_rows = all_values[1:]
     # Map each row to a dict using the header
-    data = [dict(zip(header, row)) for row in data_rows]
+    data = [dict(zip(header, row, strict=False)) for row in data_rows]
     return data
 
 
@@ -85,7 +86,7 @@ def datetime_to_gs_serial(dt: datetime) -> float:
     return delta.days + delta.seconds / 86400 + delta.microseconds / 86400 / 1e6
 
 
-def update_ynab_balances(sheet_data, updates: List[YNABEntry], worksheet) -> list[str]:
+def update_ynab_balances(sheet_data, updates: list[YNABEntry], worksheet) -> list[str]:
     """
     Updates the 'YNAB' column in the worksheet for rows where 'Cuenta' matches the 'name' in updates.
     Also updates the 'Ultima Actualizacion' column with the current Mexico City local timestamp as a Google Sheets serial number.
@@ -121,7 +122,8 @@ def update_ynab_balances(sheet_data, updates: List[YNABEntry], worksheet) -> lis
             update_cell = worksheet.cell(row_num, ultima_actualizacion_idx)
             update_cell.value = now_serial
             cell_updates.append(update_cell)
-            updated_names.append(cuenta)
+            if cuenta:
+                updated_names.append(cuenta)
     if cell_updates:
         worksheet.update_cells(cell_updates)
     return updated_names

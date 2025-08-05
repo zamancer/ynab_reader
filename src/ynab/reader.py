@@ -1,8 +1,10 @@
 import os
+from typing import Any, cast
+
 import requests
 from dotenv import load_dotenv
-from typing import Dict, Any, List, Optional
-from src.ynab.types import YNABEntry
+
+from src.ynab.ynab_types import YNABEntry
 
 load_dotenv()
 
@@ -15,11 +17,11 @@ BASE_URL = "https://api.youneedabudget.com/v1"
 headers = {"Authorization": f"Bearer {YNAB_ACCESS_TOKEN}"}
 
 
-def get_accounts(budget_id: str) -> Optional[List[Dict[str, Any]]]:
+def get_accounts(budget_id: str) -> list[dict[str, Any]] | None:
     url = f"{BASE_URL}/budgets/{budget_id}/accounts"
     response = requests.get(url, headers=headers)
     if response.status_code == 200:
-        return response.json()["data"]["accounts"]
+        return cast(list[dict[str, Any]], response.json()["data"]["accounts"])
     else:
         return None
 
@@ -52,7 +54,9 @@ def consolidate_balances(
     return consolidated
 
 
-def get_consolidated_balances() -> Optional[dict[str, YNABEntry]]:
+def get_consolidated_balances() -> dict[str, YNABEntry] | None:
+    if not MAIN_BUDGET_ID or not SECONDARY_BUDGET_ID:
+        return None
     main_accounts = get_accounts(MAIN_BUDGET_ID)
     secondary_accounts = get_accounts(SECONDARY_BUDGET_ID)
     if main_accounts and secondary_accounts:
