@@ -74,7 +74,7 @@ def get_category_id_by_name(budget_id: str, category_name: str) -> str | None:
         for group in categories:
             for category in group["categories"]:
                 if category["name"].lower() == category_name.lower():
-                    return category["id"]
+                    return str(category["id"]) if category["id"] is not None else None
     return None
 
 
