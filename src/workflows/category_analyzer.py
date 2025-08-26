@@ -93,4 +93,4 @@ def analyze_category_spending(
     # Sum amounts (YNAB amounts are in milliunits, so divide by 1000)
     total_amount = sum(transaction["amount"] for transaction in transactions) / 1000
 
-    return abs(total_amount)  # Return absolute value for spending
+    return float(abs(total_amount))  # Return absolute value for spending
