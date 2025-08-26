@@ -82,12 +82,9 @@ def get_transactions_for_category(
     budget_id: str, category_id: str, start_date: str, end_date: str
 ) -> list[dict[str, Any]]:
     """Fetches all transactions for a given category within a date range."""
-    url = f"{BASE_URL}/budgets/{budget_id}/transactions"
-    params = {
-        "since_date": start_date,
-        "category_id": category_id,
-    }
-    response = requests.get(url, headers=headers, params=params)
+    url = f"{BASE_URL}/budgets/{budget_id}/categories/{category_id}/transactions"
+    params = {"since_date": start_date}
+    response = requests.get(url, headers=headers, params=params, timeout=15)
     if response.status_code == 200:
         transactions = response.json()["data"]["transactions"]
         return [t for t in transactions if t["date"] <= end_date and not t["deleted"]]
