@@ -156,8 +156,8 @@ class PaymentTransfer(TypedDict):
 name: Payment Summary Generator
 on:
   schedule:
-    - cron: "0 12 1 * *" # 1st of every month at 6:00 AM Mexico City (UTC-6)
-    - cron: "0 12 16 * *" # 16th of every month at 6:00 AM Mexico City (UTC-6)
+    - cron: "0 15 1 * *" # 1st of every month at 9:00 AM Mexico City (UTC-6)
+    - cron: "0 15 16 * *" # 16th of every month at 9:00 AM Mexico City (UTC-6)
   workflow_dispatch: # Manual trigger anytime
 
 jobs:
@@ -563,6 +563,61 @@ Here are three different approaches considered for solving this payment optimiza
 5. **Leverages Strengths**: Uses your existing patterns and infrastructure effectively
 
 The modular design also allows easy migration to Alternative 2 (sheet-based rules) later if desired, without changing the core payment engine logic.
+
+---
+
+## Work Breakdown
+
+This feature will be implemented incrementally across four main phases. Each phase is designed to deliver a self-contained, testable unit of value, building upon the last. This approach allows for continuous validation and ensures a robust final product.
+
+### Phase 1: Foundation - Data Models & Configuration
+**Goal:** Establish the core data structures and configuration handling. This phase provides the bedrock for all subsequent logic.
+
+-   [ ] **Define Data Models:** In `src/ynab/ynab_types.py`, create the `YNABAccount`, `PaymentRule`, `PaymentConfig`, and `PaymentTransfer` typed dictionaries.
+-   [ ] **Create Configuration File:** Create a `payment_rules.json` file in a secure location (e.g., managed via GitHub secrets) with a complete set of example rules and default sources.
+-   [ ] **Implement Config Loader:** Create a new module, `src/payment/config.py`, responsible for loading and validating the `payment_rules.json` file. It should raise clear errors for malformed rules.
+-   [ ] **Unit Test Config Loader:** Add unit tests to verify that the configuration is parsed correctly and that validation catches common errors (e.g., missing fields, incorrect types).
+
+### Phase 2: Core Engine - The Payment Calculator
+**Goal:** Implement the heart of the feature—the logic that calculates payment instructions. This phase will be developed and tested in isolation using mock data.
+
+-   [ ] **Design Strategy Interface:** Create the `PaymentStrategy` abstract base class in `src/payment/strategies/base_strategy.py`.
+-   [ ] **Implement Priority Strategy:** Create the first concrete strategy, `PriorityOrderedStrategy`, which pays debts based on the prioritized list of debit sources.
+-   [ ] **Build the Calculator:** Implement the `PaymentCalculator` in `src/payment/calculator.py`. It will take in account data and payment rules, select the appropriate strategy, and generate a list of `PaymentTransfer` instructions.
+-   [ ] **Unit Test the Engine:** Write comprehensive unit tests for the `PaymentCalculator` and `PriorityOrderedStrategy`. Key scenarios to test include:
+    *   A credit card is paid in full from the first-priority source.
+    *   A credit card is paid from multiple sources.
+    *   A credit card is only partially paid due to insufficient funds.
+    *   A credit card with no specific rule uses the budget's default payment sources.
+
+### Phase 3: Integration - Connecting to Google Sheets
+**Goal:** Bridge the core engine with the live data source and output target. The deliverable for this phase is a manually triggerable script that performs the full, end-to-end process.
+
+-   [ ] **Enhance Ledger Reader:** Update `src/gsheets/ledger.py` to read all necessary account data from the "Cuentas" worksheet, including the "Fecha Pago" column, parsing it into the `YNABAccount` data models.
+-   [ ] **Create Payment Ledger Writer:** Create a new module, `src/gsheets/payment_ledger.py`, containing all logic for writing to the "Payment Summary" sheet.
+    -   [ ] Implement `get_or_create_payment_worksheet` to intelligently find or create the sheet.
+    -   [ ] Implement `write_payment_instructions` to clear old data and write the new payment rows.
+    -   [ ] Implement `setup_payment_worksheet_formatting` to apply all required formatting (headers, conditional formatting, data validation).
+-   [ ] **Build the Orchestrator:** Create the main entry point script, `src/workflows/payment_generator.py`, which orchestrates the entire flow:
+    1.  Load configuration.
+    2.  Read account data from Google Sheets.
+    3.  Invoke the `PaymentCalculator`.
+    4.  Write the resulting instructions back to Google Sheets.
+-   [ ] **Perform Manual Integration Test:** Run the `payment_generator.py` script from your local machine to verify the end-to-end process works as expected.
+
+### Phase 4: Automation & Finalization
+**Goal:** Automate the entire workflow and add final production-ready touches. This phase turns the feature into a reliable, hands-off tool.
+
+-   [ ] **Create GitHub Workflow:** Add a new workflow file (`.github/workflows/payment-summary-generator.yml`).
+-   [ ] **Configure Workflow:**
+    -   [ ] Set the `workflow_dispatch` trigger for manual runs.
+    -   [ ] Set the `schedule` trigger with the correct cron job (e.g., 9:00 AM Mexico City time on the 1st and 16th).
+    -   [ ] Add steps to check out code, set up Python, and install dependencies.
+    -   [ ] Add steps to create the `service-account.json` and `payment_rules.json` files from GitHub secrets.
+    -   [ ] Add the final step to run the script via `python3 -m src.workflows.payment_generator`.
+-   [ ] **Integrate Notifications:** Enhance the orchestrator script to use the existing `src/resend/email_sender.py` to send a confirmation email upon successful generation of the summary.
+-   [ ] **Add Failure Alerts:** Configure the GitHub workflow to send a notification on failure, ensuring you're aware of any problems.
+-   [ ] **Update Documentation:** Update the project's main `README.md` to reflect the new feature, its purpose, and how to trigger it manually.
 
 ---
 
