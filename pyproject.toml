@@ -1,3 +1,7 @@
+[project]
+name = "ynab_reader"
+requires-python = ">=3.10"
+
 [tool.ruff]
 line-length = 88
 target-version = "py311"
