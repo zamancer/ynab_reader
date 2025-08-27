@@ -134,7 +134,10 @@ class PriorityOrderedStrategy(PaymentStrategy):
             # Validate min_balance if present
             if "min_balance" in config:
                 min_balance = config["min_balance"]
-                if not isinstance(min_balance, int | float) or min_balance < 0:
+                if (
+                    not isinstance(min_balance, int | float | Decimal)
+                    or min_balance < 0
+                ):
                     raise PaymentStrategyError(
                         "min_balance must be non-negative number"
                     )
@@ -142,7 +145,10 @@ class PriorityOrderedStrategy(PaymentStrategy):
             # Validate max_payment_per_source if present
             if "max_payment_per_source" in config:
                 max_payment = config["max_payment_per_source"]
-                if not isinstance(max_payment, int | float) or max_payment <= 0:
+                if (
+                    not isinstance(max_payment, int | float | Decimal)
+                    or max_payment <= 0
+                ):
                     raise PaymentStrategyError(
                         "max_payment_per_source must be positive number"
                     )

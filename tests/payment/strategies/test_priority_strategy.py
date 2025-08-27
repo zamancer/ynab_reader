@@ -234,6 +234,34 @@ class TestPriorityOrderedStrategy:
         ):
             self.strategy.validate_config(invalid_config)
 
+    def test_validate_config_accepts_decimal_values(self):
+        """Test configuration validation accepts Decimal values."""
+        # Arrange
+        decimal_config = {
+            "min_balance": Decimal("100.50"),
+            "max_payment_per_source": Decimal("2500.75"),
+        }
+
+        # Act
+        result = self.strategy.validate_config(decimal_config)
+
+        # Assert
+        assert result is True
+
+    def test_validate_config_rejects_invalid_types(self):
+        """Test configuration validation rejects non-numeric types."""
+        # Arrange
+        invalid_configs = [
+            {"min_balance": "100"},  # String instead of number
+            {"max_payment_per_source": None},  # None instead of number
+            {"min_balance": []},  # List instead of number
+        ]
+
+        # Act & Assert
+        for config in invalid_configs:
+            with pytest.raises(PaymentStrategyError):
+                self.strategy.validate_config(config)
+
     def test_sort_by_priority_maintains_order(self):
         """Test that sources are sorted according to priority list."""
         # Arrange
