@@ -32,6 +32,7 @@ class PaymentConfig(TypedDict):
 
 class PaymentInstruction(TypedDict):
     """Represents a single transfer instruction from one source account to pay a credit card"""
+
     credit_card: str
     budget_id: str
     amount_due: float  # Total credit card debt
