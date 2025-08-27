@@ -6,6 +6,7 @@ Handles payment configuration loading and validation.
 import json
 import logging
 import os
+from decimal import ROUND_HALF_UP, Decimal
 from pathlib import Path
 from typing import Protocol
 
@@ -52,7 +53,7 @@ class JsonPaymentConfigLoader:
                 )
 
             with open(self.config_path, encoding="utf-8") as file:
-                raw_config = json.load(file)
+                raw_config = json.load(file, parse_float=Decimal)
 
             validated_config = self._validate_config(raw_config)
             logger.info(
@@ -233,3 +234,34 @@ def load_payment_config(config_path: str | None = None) -> PaymentConfig:
     """
     loader = create_payment_config_loader(config_path)
     return loader.load_config()
+
+
+def quantize_currency(amount: Decimal) -> Decimal:
+    """
+    Quantize Decimal to two decimal places for currency precision.
+
+    Args:
+        amount: Decimal amount to quantize
+
+    Returns:
+        Decimal: Amount quantized to two decimal places using banker's rounding
+    """
+    return amount.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+
+def parse_currency(value: str | float | int) -> Decimal:
+    """
+    Parse various numeric types into properly quantized Decimal currency.
+
+    Args:
+        value: Numeric value to convert to currency Decimal
+
+    Returns:
+        Decimal: Properly quantized currency amount
+    """
+    if isinstance(value, str):
+        decimal_value = Decimal(value)
+    else:
+        decimal_value = Decimal(str(value))
+
+    return quantize_currency(decimal_value)

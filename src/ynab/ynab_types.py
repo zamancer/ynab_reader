@@ -1,15 +1,16 @@
-from typing import Any, TypedDict
+from decimal import Decimal
+from typing import Any, Literal, TypedDict
 
 
 class YNABEntry(TypedDict):
     name: str
-    balance: float
+    balance: Decimal
     consolidated: bool
 
 
 class YNABAccount(TypedDict):
     name: str
-    balance: float
+    balance: Decimal
     account_type: str  # "credit_card", "checking", "savings"
     budget_id: str
     consolidated: bool
@@ -35,12 +36,12 @@ class PaymentInstruction(TypedDict):
 
     credit_card: str
     budget_id: str
-    amount_due: float  # Total credit card debt
+    amount_due: Decimal  # Total credit card debt
     payment_source: str  # Source account name
-    payment_amount: float  # Amount to transfer from this source
-    remaining_balance: float  # Remaining card balance after this transfer
+    payment_amount: Decimal  # Amount to transfer from this source
+    remaining_balance: Decimal  # Remaining card balance after this transfer
     payment_due_date: int | None  # Day of month
     days_until_due: int  # For urgency calculation
-    rule_type: str  # "explicit" or "default"
+    rule_type: Literal["explicit", "default"]
     strategy_used: str
     notes: str  # e.g., "Transfer 1 of 2"

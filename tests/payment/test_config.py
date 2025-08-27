@@ -4,6 +4,7 @@ Tests for payment configuration management.
 
 import json
 import os
+from decimal import Decimal
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 from unittest.mock import patch
@@ -15,6 +16,8 @@ from src.payment.config import (
     JsonPaymentConfigLoader,
     create_payment_config_loader,
     load_payment_config,
+    parse_currency,
+    quantize_currency,
 )
 
 
@@ -430,5 +433,74 @@ class TestConfigurationEdgeCases:
             )
             assert result["payment_rules"] == []
             assert result.get("global_strategy_defaults") is None
+        finally:
+            os.unlink(temp_path)
+
+
+class TestCurrencyUtilities:
+    def test_quantize_currency_basic(self):
+        """Test basic currency quantization to two decimal places."""
+        # Arrange
+        amount = Decimal("123.456789")
+
+        # Act
+        result = quantize_currency(amount)
+
+        # Assert
+        assert result == Decimal("123.46")
+        assert result.as_tuple().exponent == -2
+
+    def test_quantize_currency_banker_rounding(self):
+        """Test that quantization uses banker's rounding (ROUND_HALF_UP)."""
+        # Arrange & Act & Assert
+        assert quantize_currency(Decimal("123.125")) == Decimal("123.13")
+        assert quantize_currency(Decimal("123.135")) == Decimal("123.14")
+        assert quantize_currency(Decimal("123.145")) == Decimal("123.15")
+
+    def test_parse_currency_from_string(self):
+        """Test parsing currency from string values."""
+        # Arrange & Act & Assert
+        assert parse_currency("123.45") == Decimal("123.45")
+        assert parse_currency("123.456") == Decimal("123.46")
+        assert parse_currency("0.001") == Decimal("0.00")
+
+    def test_parse_currency_from_float(self):
+        """Test parsing currency from float values."""
+        # Arrange & Act & Assert
+        assert parse_currency(123.45) == Decimal("123.45")
+        assert parse_currency(123.456) == Decimal("123.46")
+        assert parse_currency(0.1) == Decimal("0.10")
+
+    def test_parse_currency_from_int(self):
+        """Test parsing currency from integer values."""
+        # Arrange & Act & Assert
+        assert parse_currency(123) == Decimal("123.00")
+        assert parse_currency(0) == Decimal("0.00")
+
+    def test_config_with_decimal_values(self):
+        """Test configuration loading preserves Decimal precision for numeric values."""
+        # Arrange
+        config_with_decimals = {
+            "default_payment_sources": {"main": ["Account1"]},
+            "payment_rules": [],
+            "global_strategy_defaults": {"priority_ordered": {"min_balance": 123.45}},
+        }
+
+        with NamedTemporaryFile(mode="w", suffix=".json", delete=False) as temp_file:
+            json.dump(config_with_decimals, temp_file)
+            temp_path = temp_file.name
+
+        try:
+            loader = JsonPaymentConfigLoader(temp_path)
+
+            # Act
+            result = loader.load_config()
+
+            # Assert
+            min_balance = result["global_strategy_defaults"]["priority_ordered"][
+                "min_balance"
+            ]
+            assert isinstance(min_balance, Decimal)
+            assert min_balance == Decimal("123.45")
         finally:
             os.unlink(temp_path)
