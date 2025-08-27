@@ -57,14 +57,14 @@ class PaymentConfig(TypedDict):
     default_payment_sources: dict[str, list[str]]  # budget_id -> default sources
     payment_rules: list[PaymentRule]
 
-class PaymentTransfer(TypedDict):
-    """Represents a single transfer from one source account to pay a credit card"""
+class PaymentInstruction(TypedDict):
+    """Represents a single transfer instruction from one source account to pay a credit card"""
     credit_card: str
     budget_id: str
-    total_card_debt: float
-    transfer_source: str  # Source account name
-    transfer_amount: float
-    remaining_card_balance: float
+    amount_due: float  # Total credit card debt
+    payment_source: str  # Source account name
+    payment_amount: float  # Amount to transfer from this source
+    remaining_balance: float  # Remaining card balance after this transfer
     payment_due_date: Optional[int]  # Day of month
     days_until_due: int  # For urgency calculation
     rule_type: str  # "explicit" or "default"
@@ -93,7 +93,7 @@ class PaymentTransfer(TypedDict):
 - **Strategy-Aware Engine**: Uses strategy factory to select appropriate payment algorithm
 - **Targets full balance payment** - attempts to pay entire credit card balance
 - **Handles edge cases** via strategy-specific logic (low balances, insufficient funds, etc.)
-- No due date logic - processes all credit cards with negative balances
+- **Due date aware** - processes credit cards with negative balances, considering payment urgency
 
 **5. Google Sheets Payment Integration** (`src/gsheets/payment_ledger.py`)
 
@@ -106,7 +106,7 @@ class PaymentTransfer(TypedDict):
 
 - Orchestrates entire payment summary generation process
 - **Targets full balance payment** for all credit cards with negative balances
-- No due date awareness - assumes user wants to pay all cards when triggered
+- **Due date awareness** - prioritizes payments based on urgency and payment due dates
 - Integrates with existing email notification system
 - Supports dry-run mode for testing
 
@@ -128,7 +128,7 @@ class PaymentTransfer(TypedDict):
    - If no explicit rule found, use default payment sources for that budget
    - Determine payment strategy (defaults to "priority_ordered" if not specified)
    - Validate that payment sources exist in the ledger data
-7. **Execute Payment Strategy**: Generate **PaymentTransfer** objects (one per source account transfer)
+7. **Execute Payment Strategy**: Generate **PaymentInstruction** objects (one per source account transfer)
 8. **Sort by Urgency**: Order transfers by days until due date (most urgent first)
 9. **Write to Google Sheets**: Create transaction-oriented "Payment Summary" worksheet with transfers as individual rows
 10. **Send Notifications**: Email summary using existing notification system
@@ -183,15 +183,22 @@ jobs:
         env:
           GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
 
+      - name: Create payment rules JSON file
+        run: |
+          echo '${{ secrets.PAYMENT_RULES_JSON }}' > payment_rules.json
+
       - name: Generate Payment Summary
         run: |
           python3 payment_summary.py
         env:
           GSHEETS_SERVICE_ACCOUNT_FILE: ./service-account.json
           GSHEETS_SPREADSHEET_ID: ${{ secrets.GSHEETS_SPREADSHEET_ID }}
+          PAYMENT_RULES_FILE: ./payment_rules.json
 
-      - name: Clean up service account file
-        run: rm -f service-account.json
+      - name: Clean up files
+        run: |
+          rm -f service-account.json
+          rm -f payment_rules.json
         if: always()
 ```
 
@@ -476,6 +483,58 @@ def add_summary_section(
 
 This approach ensures the Payment Summary worksheet is always ready for your monthly payment sessions with fresh, properly formatted data.
 
+#### Partial Payment Handling
+
+The system explicitly handles scenarios where insufficient funds prevent full credit card payment:
+
+**Detection Logic:**
+
+- During payment calculation, if `remaining_card_balance > 0` after processing all available sources, the payment is flagged as partial
+- Each strategy tracks remaining debt and generates appropriate indicators
+
+**Communication Strategy:**
+
+1. **Automatic Notes Generation**: The "Notas" column automatically includes descriptive messages:
+
+   - `"PAGO PARCIAL: Fondos insuficientes"` for partial payments due to insufficient funds
+   - `"Transferencia X de Y"` for multi-source payments (e.g., "Transfer 1 of 2")
+   - `"ALERTA: Saldo restante $X,XXX.XX"` for cards with significant remaining balances
+
+2. **Summary Section Alerts**: The summary section includes:
+
+   - **Total Unpaid Debt**: Sum of all remaining balances across partially paid cards
+   - **Partial Payment Count**: Number of credit cards that couldn't be fully paid
+   - **Funding Gap**: Difference between total debt and available payment capacity
+
+3. **Email Notification Logic**: Emails are sent only in two scenarios:
+   - **Successful Scheduled Execution**: Normal confirmation when automated workflow completes successfully
+   - **Critical Debt Alert**: When total credit card debt exceeds available debit source funds, indicating a systemic funding shortage
+
+**Example Partial Payment Output:**
+
+| Tarjeta        | Saldo Total | Transferir de  | Monto     | Saldo Restante | Notas                              |
+| -------------- | ----------- | -------------- | --------- | -------------- | ---------------------------------- |
+| Chase Sapphire | -$5,000.00  | Main Checking  | $3,000.00 | $2,000.00      | PAGO PARCIAL: Fondos insuficientes |
+| Chase Sapphire | -$5,000.00  | Emergency Fund | $1,500.00 | $500.00        | ALERTA: Saldo restante $500.00     |
+
+**Summary Section Example:**
+
+```
+RESUMEN DE PAGOS
+
+Total Deuda: $15,000.00
+Total Pagos: $12,500.00
+⚠️ DEUDA NO PAGADA: $2,500.00
+⚠️ TARJETAS PARCIALES: 2
+
+ESTADO DE PAGOS:
+  Pagadas completamente: 3 tarjetas
+  Pagadas parcialmente: 2 tarjetas
+  Sin fondos suficientes: 0 tarjetas
+```
+
+This programmatic approach ensures partial payment scenarios are immediately visible and actionable without relying on spreadsheet formatting.
+
 ## Alternatives
 
 Here are three different approaches considered for solving this payment optimization problem:
@@ -571,53 +630,57 @@ The modular design also allows easy migration to Alternative 2 (sheet-based rule
 This feature will be implemented incrementally across four main phases. Each phase is designed to deliver a self-contained, testable unit of value, building upon the last. This approach allows for continuous validation and ensures a robust final product.
 
 ### Phase 1: Foundation - Data Models & Configuration
+
 **Goal:** Establish the core data structures and configuration handling. This phase provides the bedrock for all subsequent logic.
 
--   [ ] **Define Data Models:** In `src/ynab/ynab_types.py`, create the `YNABAccount`, `PaymentRule`, `PaymentConfig`, and `PaymentTransfer` typed dictionaries.
--   [ ] **Create Configuration File:** Create a `payment_rules.json` file in a secure location (e.g., managed via GitHub secrets) with a complete set of example rules and default sources.
--   [ ] **Implement Config Loader:** Create a new module, `src/payment/config.py`, responsible for loading and validating the `payment_rules.json` file. It should raise clear errors for malformed rules.
--   [ ] **Unit Test Config Loader:** Add unit tests to verify that the configuration is parsed correctly and that validation catches common errors (e.g., missing fields, incorrect types).
+- [ ] **Define Data Models:** In `src/ynab/ynab_types.py`, create the `YNABAccount`, `PaymentRule`, `PaymentConfig`, and `PaymentInstruction` typed dictionaries.
+- [ ] **Create Configuration File:** Create a `payment_rules.json` file in a secure location (e.g., managed via GitHub secrets) with a complete set of example rules and default sources.
+- [ ] **Implement Config Loader:** Create a new module, `src/payment/config.py`, responsible for loading and validating the `payment_rules.json` file. It should raise clear errors for malformed rules.
+- [ ] **Unit Test Config Loader:** Add unit tests to verify that the configuration is parsed correctly and that validation catches common errors (e.g., missing fields, incorrect types).
 
 ### Phase 2: Core Engine - The Payment Calculator
+
 **Goal:** Implement the heart of the feature—the logic that calculates payment instructions. This phase will be developed and tested in isolation using mock data.
 
--   [ ] **Design Strategy Interface:** Create the `PaymentStrategy` abstract base class in `src/payment/strategies/base_strategy.py`.
--   [ ] **Implement Priority Strategy:** Create the first concrete strategy, `PriorityOrderedStrategy`, which pays debts based on the prioritized list of debit sources.
--   [ ] **Build the Calculator:** Implement the `PaymentCalculator` in `src/payment/calculator.py`. It will take in account data and payment rules, select the appropriate strategy, and generate a list of `PaymentTransfer` instructions.
--   [ ] **Unit Test the Engine:** Write comprehensive unit tests for the `PaymentCalculator` and `PriorityOrderedStrategy`. Key scenarios to test include:
-    *   A credit card is paid in full from the first-priority source.
-    *   A credit card is paid from multiple sources.
-    *   A credit card is only partially paid due to insufficient funds.
-    *   A credit card with no specific rule uses the budget's default payment sources.
+- [ ] **Design Strategy Interface:** Create the `PaymentStrategy` abstract base class in `src/payment/strategies/base_strategy.py`.
+- [ ] **Implement Priority Strategy:** Create the first concrete strategy, `PriorityOrderedStrategy`, which pays debts based on the prioritized list of debit sources.
+- [ ] **Build the Calculator:** Implement the `PaymentCalculator` in `src/payment/calculator.py`. It will take in account data and payment rules, select the appropriate strategy, and generate a list of `PaymentInstruction` objects.
+- [ ] **Unit Test the Engine:** Write comprehensive unit tests for the `PaymentCalculator` and `PriorityOrderedStrategy`. Key scenarios to test include:
+  - A credit card is paid in full from the first-priority source.
+  - A credit card is paid from multiple sources.
+  - A credit card is only partially paid due to insufficient funds.
+  - A credit card with no specific rule uses the budget's default payment sources.
 
 ### Phase 3: Integration - Connecting to Google Sheets
+
 **Goal:** Bridge the core engine with the live data source and output target. The deliverable for this phase is a manually triggerable script that performs the full, end-to-end process.
 
--   [ ] **Enhance Ledger Reader:** Update `src/gsheets/ledger.py` to read all necessary account data from the "Cuentas" worksheet, including the "Fecha Pago" column, parsing it into the `YNABAccount` data models.
--   [ ] **Create Payment Ledger Writer:** Create a new module, `src/gsheets/payment_ledger.py`, containing all logic for writing to the "Payment Summary" sheet.
-    -   [ ] Implement `get_or_create_payment_worksheet` to intelligently find or create the sheet.
-    -   [ ] Implement `write_payment_instructions` to clear old data and write the new payment rows.
-    -   [ ] Implement `setup_payment_worksheet_formatting` to apply all required formatting (headers, conditional formatting, data validation).
--   [ ] **Build the Orchestrator:** Create the main entry point script, `src/workflows/payment_generator.py`, which orchestrates the entire flow:
-    1.  Load configuration.
-    2.  Read account data from Google Sheets.
-    3.  Invoke the `PaymentCalculator`.
-    4.  Write the resulting instructions back to Google Sheets.
--   [ ] **Perform Manual Integration Test:** Run the `payment_generator.py` script from your local machine to verify the end-to-end process works as expected.
+- [ ] **Enhance Ledger Reader:** Update `src/gsheets/ledger.py` to read all necessary account data from the "Cuentas" worksheet, including the "Fecha Pago" column, parsing it into the `YNABAccount` data models.
+- [ ] **Create Payment Ledger Writer:** Create a new module, `src/gsheets/payment_ledger.py`, containing all logic for writing to the "Payment Summary" sheet.
+  - [ ] Implement `get_or_create_payment_worksheet` to intelligently find or create the sheet.
+  - [ ] Implement `write_payment_instructions` to clear old data and write the new payment rows.
+  - [ ] Implement `setup_payment_worksheet_formatting` to apply all required formatting (headers, conditional formatting, data validation).
+- [ ] **Build the Orchestrator:** Create the main entry point script, `src/workflows/payment_generator.py`, which orchestrates the entire flow:
+  1.  Load configuration.
+  2.  Read account data from Google Sheets.
+  3.  Invoke the `PaymentCalculator`.
+  4.  Write the resulting instructions back to Google Sheets.
+- [ ] **Perform Manual Integration Test:** Run the `payment_generator.py` script from your local machine to verify the end-to-end process works as expected.
 
 ### Phase 4: Automation & Finalization
+
 **Goal:** Automate the entire workflow and add final production-ready touches. This phase turns the feature into a reliable, hands-off tool.
 
--   [ ] **Create GitHub Workflow:** Add a new workflow file (`.github/workflows/payment-summary-generator.yml`).
--   [ ] **Configure Workflow:**
-    -   [ ] Set the `workflow_dispatch` trigger for manual runs.
-    -   [ ] Set the `schedule` trigger with the correct cron job (e.g., 9:00 AM Mexico City time on the 1st and 16th).
-    -   [ ] Add steps to check out code, set up Python, and install dependencies.
-    -   [ ] Add steps to create the `service-account.json` and `payment_rules.json` files from GitHub secrets.
-    -   [ ] Add the final step to run the script via `python3 -m src.workflows.payment_generator`.
--   [ ] **Integrate Notifications:** Enhance the orchestrator script to use the existing `src/resend/email_sender.py` to send a confirmation email upon successful generation of the summary.
--   [ ] **Add Failure Alerts:** Configure the GitHub workflow to send a notification on failure, ensuring you're aware of any problems.
--   [ ] **Update Documentation:** Update the project's main `README.md` to reflect the new feature, its purpose, and how to trigger it manually.
+- [ ] **Create GitHub Workflow:** Add a new workflow file (`.github/workflows/payment-summary-generator.yml`).
+- [ ] **Configure Workflow:**
+  - [ ] Set the `workflow_dispatch` trigger for manual runs.
+  - [ ] Set the `schedule` trigger with the correct cron job (e.g., 9:00 AM Mexico City time on the 1st and 16th).
+  - [ ] Add steps to check out code, set up Python, and install dependencies.
+  - [ ] Add steps to create the `service-account.json` and `payment_rules.json` files from GitHub secrets.
+  - [ ] Add the final step to run the script via `python3 -m src.workflows.payment_generator`.
+- [ ] **Integrate Notifications:** Enhance the orchestrator script to use the existing `src/resend/email_sender.py` to send a confirmation email upon successful generation of the summary.
+- [ ] **Add Failure Alerts:** Configure the GitHub workflow to send a notification on failure, ensuring you're aware of any problems.
+- [ ] **Update Documentation:** Update the project's main `README.md` to reflect the new feature, its purpose, and how to trigger it manually.
 
 ---
 
@@ -928,3 +991,72 @@ class PaymentCalculator:
 - ✅ **Backwards Compatible**: Default to simple priority strategy for existing rules
 
 This design allows you to start with simple priority-ordered payments and gradually add more sophisticated strategies as your needs evolve, without disrupting the core payment engine architecture.
+
+---
+
+## Implementation Notes
+
+When implementing this payment feature, follow the general development guidelines in `CLAUDE.md`. Below are payment-specific requirements and patterns.
+
+### Payment Feature Architecture
+
+**1. Single Responsibility Principle (SRP)**
+
+- Each class and function should have exactly one reason to change
+- Example: `PaymentCalculator` only calculates payments, `PaymentLedgerWriter` only handles Google Sheets operations
+- If a function does multiple things, split it into smaller, focused functions
+- Always ask: "What is this component's single job?"
+
+**2. Don't Repeat Yourself (DRY)**
+
+- Extract common patterns into reusable utilities
+- Create shared base classes for similar functionality
+- Use configuration-driven approaches instead of hardcoded values
+- If you write the same logic twice, create a shared function
+
+**3. Testability First**
+
+- Design every component to be easily unit testable in isolation
+- Use dependency injection for external dependencies (Google Sheets, file system, etc.)
+- Create clear interfaces that can be mocked
+- Write testable code BEFORE writing the actual implementation
+
+### Implementation Workflow
+
+**Claude should follow this process for each component:**
+
+1. **Design Phase:**
+
+   - Identify the single responsibility of the component
+   - Define clear interfaces using Python protocols
+   - Plan dependency injection points
+   - Design error handling strategy
+
+2. **Test-First Implementation:**
+
+   - Write comprehensive unit tests first (TDD approach)
+   - Include tests for success, error, and edge cases
+   - Mock all external dependencies
+   - Verify tests fail initially (red phase)
+
+3. **Implementation Phase:**
+
+   - Implement minimal code to make tests pass (green phase)
+   - Follow DRY principles - extract common patterns
+   - Add comprehensive logging and error handling
+   - Ensure type safety with proper type hints
+
+4. **Refactor Phase:**
+   - Review for SRP violations - split if necessary
+   - Extract reusable utilities
+   - Optimize for readability and maintainability
+   - Verify all tests still pass
+
+### Performance Considerations
+
+**Claude should optimize for:**
+
+- Batch Google Sheets operations (read/write multiple rows at once)
+- Cache configuration data to avoid repeated parsing
+- Use appropriate data structures (avoid O(n²) operations)
+- Implement proper resource cleanup (close files, cleanup temp data)
