@@ -23,6 +23,9 @@ class PaymentRule(TypedDict):
     debit_sources: list[str]  # Priority-ordered payment sources
     strategy: str | None  # Payment strategy name, defaults to "priority_ordered"
     strategy_config: dict[str, Any] | None  # Strategy-specific configuration
+    rule_origin: Literal[
+        "explicit", "default"
+    ]  # Whether rule came from config or was generated
 
 
 class PaymentConfig(TypedDict):
