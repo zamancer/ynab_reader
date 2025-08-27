@@ -70,6 +70,7 @@ class TestJsonPaymentConfigLoader:
                 result["global_strategy_defaults"]
                 == self.valid_config["global_strategy_defaults"]
             )
+            assert isinstance(result, dict)
         finally:
             os.unlink(temp_path)
 

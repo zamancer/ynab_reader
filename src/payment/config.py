@@ -8,7 +8,7 @@ import logging
 import os
 from decimal import ROUND_HALF_UP, Decimal
 from pathlib import Path
-from typing import Protocol
+from typing import Protocol, cast
 
 from src.ynab.ynab_types import PaymentConfig
 
@@ -126,11 +126,13 @@ class JsonPaymentConfigLoader:
                         "global_strategy_defaults must be a dictionary"
                     )
 
-            return PaymentConfig(
-                default_payment_sources=default_sources,
-                payment_rules=payment_rules,
-                global_strategy_defaults=global_defaults,
-            )
+            # Build plain dict with PaymentConfig structure
+            config_dict = {
+                "default_payment_sources": default_sources,
+                "payment_rules": payment_rules,
+                "global_strategy_defaults": global_defaults,
+            }
+            return cast(PaymentConfig, config_dict)
 
         except KeyError as e:
             raise ConfigurationError(f"Missing configuration key: {e}") from e
