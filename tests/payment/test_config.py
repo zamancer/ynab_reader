@@ -186,6 +186,56 @@ class TestJsonPaymentConfigLoader:
         with pytest.raises(ConfigurationError, match="payment_rules must be a list"):
             loader._validate_config(invalid_config)
 
+    def test_validate_config_invalid_payment_rule_type(self):
+        """Test validation fails when payment rule is not a dictionary."""
+        # Arrange
+        invalid_config = {
+            "default_payment_sources": {"main": ["Account1"]},
+            "payment_rules": [
+                "not a dict",  # Invalid rule type
+                {
+                    "credit_card_name": "Valid Card",
+                    "budget_id": "main",
+                    "debit_sources": ["Account1"],
+                },
+            ],
+        }
+        loader = JsonPaymentConfigLoader("/dummy/path")
+
+        # Act & Assert
+        with pytest.raises(
+            ConfigurationError,
+            match=r"Payment rule 0 must be a dictionary, got str: not a dict",
+        ):
+            loader._validate_config(invalid_config)
+
+    def test_validate_config_invalid_payment_rule_types_mixed(self):
+        """Test validation fails with clear messages for different non-dict types."""
+        # Test with number
+        invalid_config_number = {
+            "default_payment_sources": {"main": ["Account1"]},
+            "payment_rules": [123],  # Number instead of dict
+        }
+        loader = JsonPaymentConfigLoader("/dummy/path")
+
+        with pytest.raises(
+            ConfigurationError,
+            match=r"Payment rule 0 must be a dictionary, got int: 123",
+        ):
+            loader._validate_config(invalid_config_number)
+
+        # Test with list
+        invalid_config_list = {
+            "default_payment_sources": {"main": ["Account1"]},
+            "payment_rules": [["not", "a", "dict"]],  # List instead of dict
+        }
+
+        with pytest.raises(
+            ConfigurationError,
+            match=r"Payment rule 0 must be a dictionary, got list: \['not', 'a', 'dict'\]",
+        ):
+            loader._validate_config(invalid_config_list)
+
     def test_validate_payment_rule_missing_fields(self):
         """Test validation fails when payment rule is missing required fields."""
         # Arrange

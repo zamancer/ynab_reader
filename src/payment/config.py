@@ -116,6 +116,10 @@ class JsonPaymentConfigLoader:
                 raise ConfigurationError("payment_rules must be a list")
 
             for i, rule in enumerate(payment_rules):
+                if not isinstance(rule, dict):
+                    raise ConfigurationError(
+                        f"Payment rule {i} must be a dictionary, got {type(rule).__name__}: {rule}"
+                    )
                 self._validate_payment_rule(rule, i)
 
             # Validate optional global_strategy_defaults

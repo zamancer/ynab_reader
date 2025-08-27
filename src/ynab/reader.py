@@ -35,8 +35,8 @@ def consolidate_credit_card_balances(
     balance = account["balance"]
     if not account["closed"]:
         if name in consolidated:
-            consolidated[name]["balance"] += quantize_currency(
-                Decimal(balance) / Decimal("1000")
+            consolidated[name]["balance"] = quantize_currency(
+                consolidated[name]["balance"] + (Decimal(balance) / Decimal("1000"))
             )
             consolidated[name]["consolidated"] = True
         else:
