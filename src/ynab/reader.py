@@ -1,9 +1,11 @@
 import os
+from decimal import Decimal
 from typing import Any, cast
 
 import requests
 from dotenv import load_dotenv
 
+from src.payment.config import quantize_currency
 from src.ynab.ynab_types import YNABEntry
 
 load_dotenv()
@@ -33,12 +35,14 @@ def consolidate_credit_card_balances(
     balance = account["balance"]
     if not account["closed"]:
         if name in consolidated:
-            consolidated[name]["balance"] += balance / 1000
+            consolidated[name]["balance"] = quantize_currency(
+                consolidated[name]["balance"] + (Decimal(balance) / Decimal("1000"))
+            )
             consolidated[name]["consolidated"] = True
         else:
             consolidated[name] = YNABEntry(
                 name=name,
-                balance=balance / 1000,
+                balance=quantize_currency(Decimal(balance) / Decimal("1000")),
                 consolidated=False,
             )
 

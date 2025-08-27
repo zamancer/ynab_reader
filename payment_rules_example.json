@@ -1,0 +1,43 @@
+{
+  "default_payment_sources": {
+    "main": ["Main Checking", "Main Savings"],
+    "secondary": ["Investment Checking", "CETES Account"]
+  },
+  "payment_rules": [
+    {
+      "credit_card_name": "Chase Sapphire",
+      "budget_id": "main",
+      "debit_sources": ["Main Checking", "Emergency Savings"],
+      "strategy": "priority_ordered",
+      "strategy_config": {
+        "min_balance": 500,
+        "max_payment_per_source": 5000
+      }
+    },
+    {
+      "credit_card_name": "Chase Sapphire",
+      "budget_id": "secondary",
+      "debit_sources": ["Investment Checking", "CETES Account"],
+      "strategy": "priority_ordered"
+    },
+    {
+      "credit_card_name": "Investment Credit Card",
+      "budget_id": "secondary",
+      "debit_sources": ["Investment Checking", "Main Checking"],
+      "strategy": "even_distribution",
+      "strategy_config": {
+        "min_payment_per_source": 100,
+        "min_balance": 1000
+      }
+    }
+  ],
+  "global_strategy_defaults": {
+    "priority_ordered": {
+      "min_balance": 200
+    },
+    "even_distribution": {
+      "min_payment_per_source": 50,
+      "min_balance": 300
+    }
+  }
+}
