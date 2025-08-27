@@ -451,8 +451,8 @@ class TestCurrencyUtilities:
         assert result == Decimal("123.46")
         assert result.as_tuple().exponent == -2
 
-    def test_quantize_currency_banker_rounding(self):
-        """Test that quantization uses banker's rounding (ROUND_HALF_UP)."""
+    def test_quantize_currency_round_half_up(self):
+        """Test that quantization uses ROUND_HALF_UP (commercial/away-from-zero rounding)."""
         # Arrange & Act & Assert
         assert quantize_currency(Decimal("123.125")) == Decimal("123.13")
         assert quantize_currency(Decimal("123.135")) == Decimal("123.14")

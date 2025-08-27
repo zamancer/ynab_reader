@@ -246,7 +246,7 @@ def quantize_currency(amount: Decimal) -> Decimal:
         amount: Decimal amount to quantize
 
     Returns:
-        Decimal: Amount quantized to two decimal places using banker's rounding
+        Decimal: Amount quantized to two decimal places using ROUND_HALF_UP (commercial/away-from-zero rounding)
     """
     return amount.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
