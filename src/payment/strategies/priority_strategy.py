@@ -241,7 +241,7 @@ class PriorityOrderedStrategy(PaymentStrategy):
             remaining_balance=remaining_debt,
             payment_due_date=credit_card.get("payment_due_date"),
             days_until_due=days_until_due,
-            rule_type="explicit" if rule else "default",
+            rule_type=rule.get("rule_origin", "default"),
             strategy_used=self.get_strategy_name(),
             notes=notes,
         )

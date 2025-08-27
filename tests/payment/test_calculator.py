@@ -36,6 +36,7 @@ class TestPaymentCalculator:
                     "debit_sources": ["Main Checking", "Main Savings"],
                     "strategy": "priority_ordered",
                     "strategy_config": {"min_balance": 100},
+                    "rule_origin": "explicit",
                 }
             ],
             "global_strategy_defaults": {"priority_ordered": {"min_balance": 50}},
@@ -220,6 +221,7 @@ class TestPaymentCalculator:
             "debit_sources": ["Test Source"],
             "strategy": "priority_ordered",
             "strategy_config": {"max_payment_per_source": 500},
+            "rule_origin": "explicit",
         }
 
         # Act
@@ -240,6 +242,7 @@ class TestPaymentCalculator:
             "debit_sources": ["Test Source"],
             "strategy": "priority_ordered",
             "strategy_config": {"min_balance": 200},  # Override global default
+            "rule_origin": "explicit",
         }
 
         # Act
@@ -316,6 +319,7 @@ class TestSimpleRuleEngine:
         assert rule["budget_id"] == "main"
         assert rule["debit_sources"] == ["Main Checking", "Emergency Fund"]
         assert rule["strategy"] == "priority_ordered"
+        assert rule["rule_origin"] == "explicit"
 
     def test_get_payment_rule_uses_default_sources(self):
         """Test using default sources when no explicit rule found."""
@@ -340,6 +344,7 @@ class TestSimpleRuleEngine:
             "Main Savings",
         ]  # From defaults
         assert rule["strategy"] is None  # Default strategy
+        assert rule["rule_origin"] == "default"
 
     def test_get_payment_rule_no_rule_or_default_raises_error(self):
         """Test error when no rule or default sources exist for budget."""
@@ -388,3 +393,61 @@ class TestSimpleRuleEngine:
         # Assert
         assert rule["budget_id"] == "secondary"
         assert rule["debit_sources"] == ["Investment Checking"]  # Secondary budget rule
+
+    def test_get_payment_rule_does_not_mutate_original_config(self):
+        """Test that getting a rule doesn't mutate the original configuration."""
+        # Arrange
+        original_rules_count = len(self.test_config["payment_rules"])
+        original_rule = self.test_config["payment_rules"][0].copy()
+
+        credit_card: YNABAccount = {
+            "name": "Chase Sapphire",
+            "balance": Decimal("-1000.00"),
+            "account_type": "credit_card",
+            "budget_id": "main",
+            "consolidated": True,
+            "payment_due_date": 15,
+        }
+
+        # Act
+        rule = self.rule_engine.get_payment_rule(credit_card, self.test_config)
+
+        # Assert
+        # Original config should be unchanged
+        assert len(self.test_config["payment_rules"]) == original_rules_count
+        assert self.test_config["payment_rules"][0] == original_rule
+        # Original rule should not have rule_origin field
+        assert "rule_origin" not in self.test_config["payment_rules"][0]
+        # But returned rule should have it
+        assert rule["rule_origin"] == "explicit"
+
+    def test_get_payment_rule_default_sources_not_mutated(self):
+        """Test that default rule creation doesn't mutate the original default_payment_sources."""
+        # Arrange
+        original_default_sources = self.test_config["default_payment_sources"][
+            "main"
+        ].copy()
+
+        credit_card: YNABAccount = {
+            "name": "Unknown Card",
+            "balance": Decimal("-500.00"),
+            "account_type": "credit_card",
+            "budget_id": "main",
+            "consolidated": True,
+            "payment_due_date": 20,
+        }
+
+        # Act
+        rule = self.rule_engine.get_payment_rule(credit_card, self.test_config)
+        rule["debit_sources"].append("Modified Source")  # Try to modify returned rule
+
+        # Assert
+        # Original default sources should be unchanged
+        assert (
+            self.test_config["default_payment_sources"]["main"]
+            == original_default_sources
+        )
+        # The returned rule should have its own copy
+        assert (
+            rule["debit_sources"] != self.test_config["default_payment_sources"]["main"]
+        )

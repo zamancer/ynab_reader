@@ -50,6 +50,7 @@ class TestPriorityOrderedStrategy:
             "debit_sources": ["Main Checking", "Main Savings"],
             "strategy": "priority_ordered",
             "strategy_config": {"min_balance": 100},
+            "rule_origin": "explicit",
         }
 
     def test_calculate_payments_success_single_source(self):

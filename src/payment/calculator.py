@@ -3,6 +3,7 @@ Payment calculator orchestrating the payment calculation process.
 Handles payment orchestration only.
 """
 
+import copy
 import logging
 from decimal import Decimal
 from typing import Any, Protocol
@@ -57,7 +58,10 @@ class SimpleRuleEngine:
                     and rule["budget_id"] == credit_card["budget_id"]
                 ):
                     logger.debug(f"Found explicit rule for {credit_card['name']}")
-                    return rule
+                    # Return a copy with rule_origin to avoid mutating original config
+                    explicit_rule = copy.deepcopy(rule)
+                    explicit_rule["rule_origin"] = "explicit"
+                    return explicit_rule
 
             # Use default sources for the budget
             budget_id = credit_card["budget_id"]
@@ -68,13 +72,14 @@ class SimpleRuleEngine:
                     f"{credit_card['name']} in budget {budget_id}"
                 )
 
-            # Create default rule
+            # Create default rule (already a new dict, no mutation concern)
             default_rule: PaymentRule = {
                 "credit_card_name": credit_card["name"],
                 "budget_id": budget_id,
-                "debit_sources": default_sources,
+                "debit_sources": list(default_sources),  # Create copy to avoid mutation
                 "strategy": None,  # Will use default strategy
                 "strategy_config": None,
+                "rule_origin": "default",
             }
             logger.debug(f"Using default rule for {credit_card['name']}")
             return default_rule
