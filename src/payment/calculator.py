@@ -177,8 +177,9 @@ class PaymentCalculator:
                         rule, config, strategy_name
                     )
 
-                    # Create strategy instance and calculate payments
+                    # Create strategy instance and validate configuration
                     strategy = self._create_strategy(strategy_name)
+                    strategy.validate_config(strategy_config)
                     instructions = strategy.calculate_payments(
                         card, available_sources, rule, strategy_config
                     )

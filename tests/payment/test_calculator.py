@@ -277,6 +277,36 @@ class TestPaymentCalculator:
         assert len(available_sources) == 2  # Only accounts with positive balance
         assert all(source["balance"] > Decimal("0") for source in available_sources)
 
+    def test_calculate_payments_validates_strategy_config(self):
+        """Test that invalid strategy configuration is caught during validation."""
+        # Arrange
+        invalid_config: PaymentConfig = {
+            "default_payment_sources": {
+                "main": ["Main Checking", "Main Savings"],
+            },
+            "payment_rules": [
+                {
+                    "credit_card_name": "Chase Sapphire",
+                    "budget_id": "main",
+                    "debit_sources": ["Main Checking"],
+                    "strategy": "priority_ordered",
+                    "strategy_config": {"min_balance": -100},  # Invalid negative value
+                    "rule_origin": "explicit",
+                }
+            ],
+            "global_strategy_defaults": None,
+        }
+        self.mock_config_loader.load_config.return_value = invalid_config
+
+        # Act
+        instructions = self.calculator.calculate_payments(
+            self.credit_cards, self.available_funds
+        )
+
+        # Assert
+        # Should return empty list since the card with invalid config is skipped
+        assert instructions == []
+
 
 class TestSimpleRuleEngine:
     def setup_method(self):
