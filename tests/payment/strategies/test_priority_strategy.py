@@ -68,6 +68,7 @@ class TestPriorityOrderedStrategy:
         instruction = instructions[0]
         assert instruction["credit_card"] == "Chase Sapphire"
         assert instruction["payment_source"] == "Main Checking"
+        assert instruction["amount_due"] == Decimal("1000.00")
         assert instruction["payment_amount"] == Decimal("1000.00")
         assert instruction["remaining_balance"] == Decimal("0")
         assert instruction["rule_type"] == "explicit"
@@ -77,7 +78,9 @@ class TestPriorityOrderedStrategy:
         """Test payment requiring multiple sources due to insufficient balance in first source."""
         # Arrange
         # Reduce first source balance to require second source
-        limited_sources = self.debit_sources.copy()
+        from copy import deepcopy
+
+        limited_sources = deepcopy(self.debit_sources)
         limited_sources[0]["balance"] = Decimal(
             "600.00"
         )  # Only 500 available after min_balance
@@ -344,3 +347,15 @@ class TestPriorityOrderedStrategy:
         # Assert
         expected_notes = "Transfer 1 of 2 - ALERTA: Saldo restante $400.00"
         assert instruction["notes"] == expected_notes
+
+    def test_rule_origin_defaults_to_default(self):
+        # Arrange
+        rule_no_origin = self.payment_rule.copy()
+        rule_no_origin.pop("rule_origin", None)
+        # Act
+        instructions = self.strategy.calculate_payments(
+            self.credit_card, self.debit_sources, rule_no_origin, {"min_balance": 100}
+        )
+        # Assert
+        assert instructions
+        assert instructions[0]["rule_type"] == "default"
