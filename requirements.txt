@@ -13,3 +13,5 @@ Jinja2==3.1.6
 mypy
 ruff
 types-requests
+pytest>=7.0.0
+pytest-mock>=3.10.0
