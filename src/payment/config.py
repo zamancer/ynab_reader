@@ -46,9 +46,9 @@ class JsonPaymentConfigLoader:
             ConfigurationError: If configuration is invalid or cannot be loaded
         """
         try:
-            if not self.config_path.exists():
+            if (not self.config_path.exists()) or (not self.config_path.is_file()):
                 raise ConfigurationError(
-                    f"Configuration file not found: {self.config_path}"
+                    f"Configuration file not found or is not a file: {self.config_path}"
                 )
 
             with open(self.config_path, encoding="utf-8") as file:
@@ -61,9 +61,11 @@ class JsonPaymentConfigLoader:
 
             return validated_config
 
+        except ConfigurationError:
+            raise
         except json.JSONDecodeError as e:
             raise ConfigurationError(f"Invalid JSON in configuration file: {e}") from e
-        except Exception as e:
+        except OSError as e:
             raise ConfigurationError(f"Failed to load configuration: {e}") from e
 
     def _validate_config(self, config: dict) -> PaymentConfig:

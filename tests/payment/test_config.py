@@ -76,8 +76,25 @@ class TestJsonPaymentConfigLoader:
         loader = JsonPaymentConfigLoader("/nonexistent/path.json")
 
         # Act & Assert
-        with pytest.raises(ConfigurationError, match="Configuration file not found"):
+        with pytest.raises(
+            ConfigurationError, match="Configuration file not found or is not a file"
+        ):
             loader.load_config()
+
+    def test_load_config_path_is_directory(self):
+        """Test error handling when configuration path is a directory."""
+        # Arrange
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            loader = JsonPaymentConfigLoader(temp_dir)
+
+            # Act & Assert
+            with pytest.raises(
+                ConfigurationError,
+                match="Configuration file not found or is not a file",
+            ):
+                loader.load_config()
 
     def test_load_config_invalid_json(self):
         """Test error handling with malformed JSON."""
@@ -95,6 +112,34 @@ class TestJsonPaymentConfigLoader:
             ):
                 loader.load_config()
         finally:
+            os.unlink(temp_path)
+
+    def test_load_config_os_error(self):
+        """Test error handling for OS-level errors (like permission denied)."""
+        # Arrange
+        with NamedTemporaryFile(mode="w", suffix=".json", delete=False) as temp_file:
+            json.dump(
+                {
+                    "default_payment_sources": {"main": ["Account1"]},
+                    "payment_rules": [],
+                },
+                temp_file,
+            )
+            temp_path = temp_file.name
+
+        try:
+            # Make file unreadable
+            os.chmod(temp_path, 0o000)
+            loader = JsonPaymentConfigLoader(temp_path)
+
+            # Act & Assert
+            with pytest.raises(
+                ConfigurationError, match="Failed to load configuration"
+            ):
+                loader.load_config()
+        finally:
+            # Restore permissions and cleanup
+            os.chmod(temp_path, 0o644)
             os.unlink(temp_path)
 
     def test_validate_config_missing_required_keys(self):
