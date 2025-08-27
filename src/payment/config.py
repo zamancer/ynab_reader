@@ -83,6 +83,11 @@ class JsonPaymentConfigLoader:
             ConfigurationError: If configuration is invalid
         """
         try:
+            # Validate config is a dictionary
+            if not isinstance(config, dict):
+                raise ConfigurationError(
+                    "Top-level configuration must be a dictionary/object"
+                )
             # Validate required top-level keys
             required_keys = {"default_payment_sources", "payment_rules"}
             missing_keys = required_keys - set(config.keys())
