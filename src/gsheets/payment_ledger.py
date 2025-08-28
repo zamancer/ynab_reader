@@ -162,18 +162,57 @@ class PaymentLedgerWriter:
                 },
             )
 
-            # Set column widths (auto-resize all columns)
-            worksheet.columns_auto_resize(0, len(self.HEADERS) - 1)
-
-            # Add data validation for Status column (I)
-            validation_rule = {
-                "condition": {"type": "ONE_OF_LIST", "values": self.STATUS_OPTIONS},
-                "showCustomUi": True,
-            }
-            worksheet.add_validation("I2:I100", validation_rule)  # type: ignore[call-arg,arg-type]
-
-            # Freeze header row
-            worksheet.freeze(1)
+            # Apply column auto-resize, data validation, and freeze header using batch_update
+            sheet_id = worksheet.id
+            requests = [
+                # Auto-resize all columns
+                {
+                    "autoResizeDimensions": {
+                        "dimensions": {
+                            "sheetId": sheet_id,
+                            "dimension": "COLUMNS",
+                            "startIndex": 0,
+                            "endIndex": len(self.HEADERS),
+                        }
+                    }
+                },
+                # Add data validation for Status column (I) rows 2-100
+                {
+                    "repeatCell": {
+                        "range": {
+                            "sheetId": sheet_id,
+                            "startRowIndex": 1,  # Row 2 (0-indexed)
+                            "endRowIndex": 100,  # Row 100 (exclusive)
+                            "startColumnIndex": 8,  # Column I (0-indexed)
+                            "endColumnIndex": 9,  # Column I (exclusive)
+                        },
+                        "cell": {
+                            "dataValidation": {
+                                "condition": {
+                                    "type": "ONE_OF_LIST",
+                                    "values": [
+                                        {"userEnteredValue": option}
+                                        for option in self.STATUS_OPTIONS
+                                    ],
+                                },
+                                "showCustomUi": True,
+                            }
+                        },
+                        "fields": "dataValidation",
+                    }
+                },
+                # Freeze header row
+                {
+                    "updateSheetProperties": {
+                        "properties": {
+                            "sheetId": sheet_id,
+                            "gridProperties": {"frozenRowCount": 1},
+                        },
+                        "fields": "gridProperties.frozenRowCount",
+                    }
+                },
+            ]
+            worksheet.spreadsheet.batch_update({"requests": requests})
 
             self.logger.info("Applied formatting to Payment Summary worksheet")
 

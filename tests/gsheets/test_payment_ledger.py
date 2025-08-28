@@ -126,6 +126,9 @@ class TestPaymentLedgerWriter:
         """Test successful worksheet formatting setup."""
         # Arrange
         mock_worksheet = Mock()
+        mock_worksheet.id = 123456
+        mock_spreadsheet = Mock()
+        mock_worksheet.spreadsheet = mock_spreadsheet
 
         # Act
         self.writer.setup_payment_worksheet_formatting(mock_worksheet)
@@ -133,9 +136,57 @@ class TestPaymentLedgerWriter:
         # Assert
         mock_worksheet.update.assert_called_once_with("A1:K1", [self.writer.HEADERS])
         mock_worksheet.format.assert_called()
-        mock_worksheet.columns_auto_resize.assert_called_once_with(0, 10)
-        mock_worksheet.add_validation.assert_called_once()
-        mock_worksheet.freeze.assert_called_once_with(1)
+
+        # Verify batch_update was called with the correct requests
+        mock_spreadsheet.batch_update.assert_called_once()
+        batch_update_call = mock_spreadsheet.batch_update.call_args[0][0]
+        requests = batch_update_call["requests"]
+
+        # Verify we have all three requests
+        assert len(requests) == 3
+
+        # Verify auto-resize request
+        auto_resize_request = requests[0]
+        assert "autoResizeDimensions" in auto_resize_request
+        assert (
+            auto_resize_request["autoResizeDimensions"]["dimensions"]["sheetId"]
+            == 123456
+        )
+        assert (
+            auto_resize_request["autoResizeDimensions"]["dimensions"]["dimension"]
+            == "COLUMNS"
+        )
+        assert (
+            auto_resize_request["autoResizeDimensions"]["dimensions"]["startIndex"] == 0
+        )
+        assert auto_resize_request["autoResizeDimensions"]["dimensions"][
+            "endIndex"
+        ] == len(self.writer.HEADERS)
+
+        # Verify data validation request
+        validation_request = requests[1]
+        assert "repeatCell" in validation_request
+        assert validation_request["repeatCell"]["range"]["sheetId"] == 123456
+        assert validation_request["repeatCell"]["range"]["startRowIndex"] == 1
+        assert validation_request["repeatCell"]["range"]["endRowIndex"] == 100
+        assert (
+            validation_request["repeatCell"]["range"]["startColumnIndex"] == 8
+        )  # Column I
+        assert validation_request["repeatCell"]["range"]["endColumnIndex"] == 9
+
+        # Verify freeze request
+        freeze_request = requests[2]
+        assert "updateSheetProperties" in freeze_request
+        assert (
+            freeze_request["updateSheetProperties"]["properties"]["sheetId"] == 123456
+        )
+        assert (
+            freeze_request["updateSheetProperties"]["properties"]["gridProperties"][
+                "frozenRowCount"
+            ]
+            == 1
+        )
+
         self.mock_logger.info.assert_called_with(
             "Applied formatting to Payment Summary worksheet"
         )
