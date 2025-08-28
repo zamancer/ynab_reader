@@ -436,49 +436,70 @@ class PaymentLedgerWriter:
             return
 
         try:
-            # Red background for negative balances (column C - Saldo Actual)
-            worksheet.format(
-                f"C2:C{data_row_count + 1}",
+            ss = worksheet.spreadsheet
+            sheet_id = worksheet._properties["sheetId"]
+            end_row = data_row_count + 1
+            requests = [
                 {
-                    "conditionalFormatRules": [
-                        {
-                            "condition": {
-                                "type": "CUSTOM_FORMULA",
-                                "values": {"userEnteredValue": "=C2<0"},
-                            },
-                            "format": {
-                                "backgroundColor": {
-                                    "red": 1.0,
-                                    "green": 0.8,
-                                    "blue": 0.8,
+                    "addConditionalFormatRule": {
+                        "rule": {
+                            "ranges": [
+                                {
+                                    "sheetId": sheet_id,
+                                    "startRowIndex": 1,
+                                    "endRowIndex": end_row,
+                                    "startColumnIndex": 2,
+                                    "endColumnIndex": 3,
                                 }
+                            ],
+                            "booleanRule": {
+                                "condition": {
+                                    "type": "CUSTOM_FORMULA",
+                                    "values": [{"userEnteredValue": "=$C2<0"}],
+                                },
+                                "format": {
+                                    "backgroundColor": {
+                                        "red": 1.0,
+                                        "green": 0.8,
+                                        "blue": 0.8,
+                                    }
+                                },
                             },
-                        }
-                    ]
+                        },
+                        "index": 0,
+                    }
                 },
-            )
-
-            # Green background for completed payments (column I - Estado)
-            worksheet.format(
-                f"I2:I{data_row_count + 1}",
                 {
-                    "conditionalFormatRules": [
-                        {
-                            "condition": {
-                                "type": "TEXT_EQ",
-                                "values": {"userEnteredValue": "Procesado"},
-                            },
-                            "format": {
-                                "backgroundColor": {
-                                    "red": 0.8,
-                                    "green": 1.0,
-                                    "blue": 0.8,
+                    "addConditionalFormatRule": {
+                        "rule": {
+                            "ranges": [
+                                {
+                                    "sheetId": sheet_id,
+                                    "startRowIndex": 1,
+                                    "endRowIndex": end_row,
+                                    "startColumnIndex": 8,
+                                    "endColumnIndex": 9,
                                 }
+                            ],
+                            "booleanRule": {
+                                "condition": {
+                                    "type": "TEXT_EQ",
+                                    "values": [{"userEnteredValue": "Procesado"}],
+                                },
+                                "format": {
+                                    "backgroundColor": {
+                                        "red": 0.8,
+                                        "green": 1.0,
+                                        "blue": 0.8,
+                                    }
+                                },
                             },
-                        }
-                    ]
+                        },
+                        "index": 0,
+                    }
                 },
-            )
+            ]
+            ss.batch_update({"requests": requests})
 
             self.logger.info("Applied conditional formatting")
 
