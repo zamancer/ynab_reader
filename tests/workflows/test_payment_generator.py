@@ -8,7 +8,6 @@ from src.workflows.payment_generator import (
     PaymentGeneratorError,
     main,
 )
-from src.ynab.ynab_types import PaymentInstruction, YNABAccount
 
 
 class TestPaymentGenerator:
@@ -23,55 +22,55 @@ class TestPaymentGenerator:
 
         # Sample account data
         self.sample_accounts = [
-            YNABAccount(
-                name="Chase Sapphire",
-                balance=Decimal("-1500.00"),
-                account_type="credit_card",
-                budget_id="main",
-                consolidated=True,
-                payment_due_date=15,
-            ),
-            YNABAccount(
-                name="Main Checking",
-                balance=Decimal("3000.00"),
-                account_type="checking",
-                budget_id="main",
-                consolidated=True,
-                payment_due_date=None,
-            ),
-            YNABAccount(
-                name="Investment Card",
-                balance=Decimal("-2500.00"),
-                account_type="credit_card",
-                budget_id="secondary",
-                consolidated=True,
-                payment_due_date=20,
-            ),
-            YNABAccount(
-                name="Investment Checking",
-                balance=Decimal("5000.00"),
-                account_type="checking",
-                budget_id="secondary",
-                consolidated=True,
-                payment_due_date=None,
-            ),
+            {
+                "name": "Chase Sapphire",
+                "balance": Decimal("-1500.00"),
+                "account_type": "credit_card",
+                "budget_id": "main",
+                "consolidated": True,
+                "payment_due_date": 15,
+            },
+            {
+                "name": "Main Checking",
+                "balance": Decimal("3000.00"),
+                "account_type": "checking",
+                "budget_id": "main",
+                "consolidated": True,
+                "payment_due_date": None,
+            },
+            {
+                "name": "Investment Card",
+                "balance": Decimal("-2500.00"),
+                "account_type": "credit_card",
+                "budget_id": "secondary",
+                "consolidated": True,
+                "payment_due_date": 20,
+            },
+            {
+                "name": "Investment Checking",
+                "balance": Decimal("5000.00"),
+                "account_type": "checking",
+                "budget_id": "secondary",
+                "consolidated": True,
+                "payment_due_date": None,
+            },
         ]
 
         # Sample payment instructions
         self.sample_instructions = [
-            PaymentInstruction(
-                credit_card="Chase Sapphire",
-                budget_id="main",
-                amount_due=Decimal("1500.00"),
-                payment_source="Main Checking",
-                payment_amount=Decimal("1500.00"),
-                remaining_balance=Decimal("0.00"),
-                payment_due_date=15,
-                days_until_due=5,
-                rule_type="explicit",
-                strategy_used="priority_ordered",
-                notes="Full payment",
-            )
+            {
+                "credit_card": "Chase Sapphire",
+                "budget_id": "main",
+                "amount_due": Decimal("1500.00"),
+                "payment_source": "Main Checking",
+                "payment_amount": Decimal("1500.00"),
+                "remaining_balance": Decimal("0.00"),
+                "payment_due_date": 15,
+                "days_until_due": 5,
+                "rule_type": "explicit",
+                "strategy_used": "priority_ordered",
+                "notes": "Full payment",
+            }
         ]
 
     def test_init_creates_components(self):
@@ -207,32 +206,32 @@ class TestPaymentGenerator:
 
         # Create instructions with partial payments
         instructions_with_partial = [
-            PaymentInstruction(
-                credit_card="Card 1",
-                budget_id="main",
-                amount_due=Decimal("1000.00"),
-                payment_source="Account 1",
-                payment_amount=Decimal("1000.00"),
-                remaining_balance=Decimal("0.00"),
-                payment_due_date=15,
-                days_until_due=5,
-                rule_type="explicit",
-                strategy_used="priority_ordered",
-                notes="",
-            ),
-            PaymentInstruction(
-                credit_card="Card 2",
-                budget_id="main",
-                amount_due=Decimal("2000.00"),
-                payment_source="Account 1",
-                payment_amount=Decimal("1500.00"),
-                remaining_balance=Decimal("500.00"),  # Partial payment
-                payment_due_date=20,
-                days_until_due=10,
-                rule_type="default",
-                strategy_used="priority_ordered",
-                notes="",
-            ),
+            {
+                "credit_card": "Card 1",
+                "budget_id": "main",
+                "amount_due": Decimal("1000.00"),
+                "payment_source": "Account 1",
+                "payment_amount": Decimal("1000.00"),
+                "remaining_balance": Decimal("0.00"),
+                "payment_due_date": 15,
+                "days_until_due": 5,
+                "rule_type": "explicit",
+                "strategy_used": "priority_ordered",
+                "notes": "",
+            },
+            {
+                "credit_card": "Card 2",
+                "budget_id": "main",
+                "amount_due": Decimal("2000.00"),
+                "payment_source": "Account 1",
+                "payment_amount": Decimal("1500.00"),
+                "remaining_balance": Decimal("500.00"),  # Partial payment
+                "payment_due_date": 20,
+                "days_until_due": 10,
+                "rule_type": "default",
+                "strategy_used": "priority_ordered",
+                "notes": "",
+            },
         ]
 
         # Act
