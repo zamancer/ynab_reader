@@ -262,6 +262,66 @@ class PaymentLedgerWriter:
                         "fields": "userEnteredFormat.numberFormat",
                     }
                 },
+                # Add conditional formatting for negative balances (column C)
+                {
+                    "addConditionalFormatRule": {
+                        "rule": {
+                            "ranges": [
+                                {
+                                    "sheetId": sheet_id,
+                                    "startRowIndex": 1,  # Row 2 onwards
+                                    "endRowIndex": 5000,  # Large range for future data
+                                    "startColumnIndex": 2,  # Column C (Saldo Actual)
+                                    "endColumnIndex": 3,  # Column C only (exclusive)
+                                }
+                            ],
+                            "booleanRule": {
+                                "condition": {
+                                    "type": "CUSTOM_FORMULA",
+                                    "values": [{"userEnteredValue": "=$C2<0"}],
+                                },
+                                "format": {
+                                    "backgroundColor": {
+                                        "red": 1.0,
+                                        "green": 0.8,
+                                        "blue": 0.8,
+                                    }
+                                },
+                            },
+                        },
+                        "index": 0,
+                    }
+                },
+                # Add conditional formatting for completed payments (column I)
+                {
+                    "addConditionalFormatRule": {
+                        "rule": {
+                            "ranges": [
+                                {
+                                    "sheetId": sheet_id,
+                                    "startRowIndex": 1,  # Row 2 onwards
+                                    "endRowIndex": 5000,  # Large range for future data
+                                    "startColumnIndex": 8,  # Column I (Estado)
+                                    "endColumnIndex": 9,  # Column I only (exclusive)
+                                }
+                            ],
+                            "booleanRule": {
+                                "condition": {
+                                    "type": "TEXT_EQ",
+                                    "values": [{"userEnteredValue": "Procesado"}],
+                                },
+                                "format": {
+                                    "backgroundColor": {
+                                        "red": 0.8,
+                                        "green": 1.0,
+                                        "blue": 0.8,
+                                    }
+                                },
+                            },
+                        },
+                        "index": 0,
+                    }
+                },
                 # Freeze header row
                 {
                     "updateSheetProperties": {
@@ -322,9 +382,6 @@ class PaymentLedgerWriter:
             self._add_summary_section(
                 worksheet, instructions, generation_timestamp, summary_start_row
             )
-
-            # Apply conditional formatting
-            self._apply_payment_conditional_formatting(worksheet, len(data_rows))
 
         except Exception as e:
             raise PaymentLedgerError(
@@ -427,85 +484,6 @@ class PaymentLedgerWriter:
         except Exception as e:
             self.logger.error(f"Failed to add summary section: {e}")
             raise
-
-    def _apply_payment_conditional_formatting(
-        self, worksheet: gspread.Worksheet, data_row_count: int
-    ) -> None:
-        """Apply conditional formatting to payment data."""
-        if data_row_count == 0:
-            return
-
-        try:
-            ss = worksheet.spreadsheet
-            sheet_id = worksheet._properties["sheetId"]
-            end_row = data_row_count + 1
-            requests = [
-                {
-                    "addConditionalFormatRule": {
-                        "rule": {
-                            "ranges": [
-                                {
-                                    "sheetId": sheet_id,
-                                    "startRowIndex": 1,
-                                    "endRowIndex": end_row,
-                                    "startColumnIndex": 2,
-                                    "endColumnIndex": 3,
-                                }
-                            ],
-                            "booleanRule": {
-                                "condition": {
-                                    "type": "CUSTOM_FORMULA",
-                                    "values": [{"userEnteredValue": "=$C2<0"}],
-                                },
-                                "format": {
-                                    "backgroundColor": {
-                                        "red": 1.0,
-                                        "green": 0.8,
-                                        "blue": 0.8,
-                                    }
-                                },
-                            },
-                        },
-                        "index": 0,
-                    }
-                },
-                {
-                    "addConditionalFormatRule": {
-                        "rule": {
-                            "ranges": [
-                                {
-                                    "sheetId": sheet_id,
-                                    "startRowIndex": 1,
-                                    "endRowIndex": end_row,
-                                    "startColumnIndex": 8,
-                                    "endColumnIndex": 9,
-                                }
-                            ],
-                            "booleanRule": {
-                                "condition": {
-                                    "type": "TEXT_EQ",
-                                    "values": [{"userEnteredValue": "Procesado"}],
-                                },
-                                "format": {
-                                    "backgroundColor": {
-                                        "red": 0.8,
-                                        "green": 1.0,
-                                        "blue": 0.8,
-                                    }
-                                },
-                            },
-                        },
-                        "index": 0,
-                    }
-                },
-            ]
-            ss.batch_update({"requests": requests})
-
-            self.logger.info("Applied conditional formatting")
-
-        except Exception as e:
-            self.logger.warning(f"Failed to apply conditional formatting: {e}")
-            # Non-critical error, continue execution
 
 
 def create_payment_summary(

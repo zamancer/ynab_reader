@@ -142,8 +142,8 @@ class TestPaymentLedgerWriter:
         batch_update_call = mock_spreadsheet.batch_update.call_args[0][0]
         requests = batch_update_call["requests"]
 
-        # Verify we have all six requests (auto-resize, validation, 3 currency formats, freeze)
-        assert len(requests) == 6
+        # Verify we have all eight requests (auto-resize, validation, 3 currency formats, 2 conditional formats, freeze)
+        assert len(requests) == 8
 
         # Verify auto-resize request
         auto_resize_request = requests[0]
@@ -175,7 +175,7 @@ class TestPaymentLedgerWriter:
         assert validation_request["repeatCell"]["range"]["endColumnIndex"] == 9
 
         # Verify freeze request
-        freeze_request = requests[5]
+        freeze_request = requests[7]
         assert "updateSheetProperties" in freeze_request
         assert (
             freeze_request["updateSheetProperties"]["properties"]["sheetId"] == 123456
@@ -333,63 +333,6 @@ class TestPaymentLedgerWriter:
         # Partial payment alerts should not be present
         assert "DEUDA NO PAGADA" not in summary_text
         assert "TARJETAS PARCIALES" not in summary_text
-
-    def test_apply_payment_conditional_formatting_success(self):
-        """Test successful application of conditional formatting."""
-        # Arrange
-        mock_worksheet = Mock()
-        mock_worksheet._properties = {"sheetId": 123456}
-        mock_spreadsheet = Mock()
-        mock_worksheet.spreadsheet = mock_spreadsheet
-        data_row_count = 3
-
-        # Act
-        self.writer._apply_payment_conditional_formatting(
-            mock_worksheet, data_row_count
-        )
-
-        # Assert
-        mock_spreadsheet.batch_update.assert_called_once()
-        batch_update_call = mock_spreadsheet.batch_update.call_args[0][0]
-        requests = batch_update_call["requests"]
-        assert len(requests) == 2  # Two conditional formatting rules
-        self.mock_logger.info.assert_called_with("Applied conditional formatting")
-
-    def test_apply_payment_conditional_formatting_zero_rows(self):
-        """Test conditional formatting with zero data rows."""
-        # Arrange
-        mock_worksheet = Mock()
-        data_row_count = 0
-
-        # Act
-        self.writer._apply_payment_conditional_formatting(
-            mock_worksheet, data_row_count
-        )
-
-        # Assert
-        # Should return early, method completes without issue
-        # No batch_update should be called since data_row_count is 0
-        pass  # Test passes if no exception is raised
-
-    def test_apply_payment_conditional_formatting_error(self):
-        """Test error handling in conditional formatting."""
-        # Arrange
-        mock_worksheet = Mock()
-        mock_worksheet._properties = {"sheetId": 123456}
-        mock_spreadsheet = Mock()
-        mock_spreadsheet.batch_update.side_effect = Exception("Format error")
-        mock_worksheet.spreadsheet = mock_spreadsheet
-        data_row_count = 3
-
-        # Act (should not raise, just log warning)
-        self.writer._apply_payment_conditional_formatting(
-            mock_worksheet, data_row_count
-        )
-
-        # Assert
-        self.mock_logger.warning.assert_called_with(
-            "Failed to apply conditional formatting: Format error"
-        )
 
 
 class TestCreatePaymentSummaryFunction:
