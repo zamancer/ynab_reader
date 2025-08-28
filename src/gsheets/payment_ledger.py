@@ -201,6 +201,67 @@ class PaymentLedgerWriter:
                         "fields": "dataValidation",
                     }
                 },
+                # Apply currency formatting to amount columns (C, D, H)
+                {
+                    "repeatCell": {
+                        "range": {
+                            "sheetId": sheet_id,
+                            "startRowIndex": 1,  # Row 2 onwards (0-indexed)
+                            "endRowIndex": 1000,  # Large range for future data
+                            "startColumnIndex": 2,  # Column C (Saldo Actual)
+                            "endColumnIndex": 3,  # Column C only (exclusive)
+                        },
+                        "cell": {
+                            "userEnteredFormat": {
+                                "numberFormat": {
+                                    "type": "CURRENCY",
+                                    "pattern": "$#,##0.00",
+                                }
+                            }
+                        },
+                        "fields": "userEnteredFormat.numberFormat",
+                    }
+                },
+                {
+                    "repeatCell": {
+                        "range": {
+                            "sheetId": sheet_id,
+                            "startRowIndex": 1,  # Row 2 onwards (0-indexed)
+                            "endRowIndex": 1000,  # Large range for future data
+                            "startColumnIndex": 3,  # Column D (Monto a Pagar)
+                            "endColumnIndex": 4,  # Column D only (exclusive)
+                        },
+                        "cell": {
+                            "userEnteredFormat": {
+                                "numberFormat": {
+                                    "type": "CURRENCY",
+                                    "pattern": "$#,##0.00",
+                                }
+                            }
+                        },
+                        "fields": "userEnteredFormat.numberFormat",
+                    }
+                },
+                {
+                    "repeatCell": {
+                        "range": {
+                            "sheetId": sheet_id,
+                            "startRowIndex": 1,  # Row 2 onwards (0-indexed)
+                            "endRowIndex": 1000,  # Large range for future data
+                            "startColumnIndex": 7,  # Column H (Balance Restante)
+                            "endColumnIndex": 8,  # Column H only (exclusive)
+                        },
+                        "cell": {
+                            "userEnteredFormat": {
+                                "numberFormat": {
+                                    "type": "CURRENCY",
+                                    "pattern": "$#,##0.00",
+                                }
+                            }
+                        },
+                        "fields": "userEnteredFormat.numberFormat",
+                    }
+                },
                 # Freeze header row
                 {
                     "updateSheetProperties": {
@@ -271,19 +332,19 @@ class PaymentLedgerWriter:
 
     def _prepare_data_rows(
         self, instructions: list[PaymentInstruction]
-    ) -> list[list[str]]:
+    ) -> list[list[object]]:
         """Convert payment instructions to worksheet data rows."""
         data_rows = []
         for instruction in instructions:
             row = [
                 instruction["credit_card"],
                 instruction["budget_id"].title(),
-                f"-${abs(instruction['amount_due']):,.2f}",
-                f"${instruction['payment_amount']:,.2f}",
+                -abs(float(instruction["amount_due"])),  # Raw negative number
+                float(instruction["payment_amount"]),  # Raw positive number
                 instruction["payment_source"],
                 instruction.get("strategy_used", "priority_ordered"),
                 instruction["rule_type"],
-                f"${instruction['remaining_balance']:,.2f}",
+                float(instruction["remaining_balance"]),  # Raw number
                 "Pendiente",  # Default status
                 "",  # Date processed (empty initially)
                 instruction.get("notes", ""),  # Notes
@@ -320,8 +381,8 @@ class PaymentLedgerWriter:
             summary_data = [
                 ["RESUMEN DE PAGOS", ""],
                 ["", ""],
-                ["Total Deuda:", f"${total_debt:,.2f}"],
-                ["Total Pagos:", f"${total_payments:,.2f}"],
+                ["Total Deuda:", float(total_debt)],
+                ["Total Pagos:", float(total_payments)],
                 ["Cuentas Utilizadas:", f"{len(unique_accounts)}"],
             ]
 
@@ -330,7 +391,7 @@ class PaymentLedgerWriter:
                 summary_data.extend(
                     [
                         ["", ""],
-                        ["⚠️ DEUDA NO PAGADA:", f"${total_unpaid_debt:,.2f}"],
+                        ["⚠️ DEUDA NO PAGADA:", float(total_unpaid_debt)],
                         ["⚠️ TARJETAS PARCIALES:", f"{partial_payment_count}"],
                     ]
                 )

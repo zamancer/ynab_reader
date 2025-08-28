@@ -142,8 +142,8 @@ class TestPaymentLedgerWriter:
         batch_update_call = mock_spreadsheet.batch_update.call_args[0][0]
         requests = batch_update_call["requests"]
 
-        # Verify we have all three requests
-        assert len(requests) == 3
+        # Verify we have all six requests (auto-resize, validation, 3 currency formats, freeze)
+        assert len(requests) == 6
 
         # Verify auto-resize request
         auto_resize_request = requests[0]
@@ -175,7 +175,7 @@ class TestPaymentLedgerWriter:
         assert validation_request["repeatCell"]["range"]["endColumnIndex"] == 9
 
         # Verify freeze request
-        freeze_request = requests[2]
+        freeze_request = requests[5]
         assert "updateSheetProperties" in freeze_request
         assert (
             freeze_request["updateSheetProperties"]["properties"]["sheetId"] == 123456
@@ -260,12 +260,12 @@ class TestPaymentLedgerWriter:
         first_row = data_rows[0]
         assert first_row[0] == "Chase Sapphire"  # credit_card
         assert first_row[1] == "Main"  # budget_id.title()
-        assert first_row[2] == "-$1,500.00"  # amount_due (negative)
-        assert first_row[3] == "$1,500.00"  # payment_amount
+        assert first_row[2] == -1500.0  # amount_due (raw negative number)
+        assert first_row[3] == 1500.0  # payment_amount (raw number)
         assert first_row[4] == "Main Checking"  # payment_source
         assert first_row[5] == "priority_ordered"  # strategy_used
         assert first_row[6] == "explicit"  # rule_type
-        assert first_row[7] == "$0.00"  # remaining_balance
+        assert first_row[7] == 0.0  # remaining_balance (raw number)
         assert first_row[8] == "Pendiente"  # status (default)
         assert first_row[9] == ""  # date processed (empty)
         assert first_row[10] == "Full payment"  # notes
