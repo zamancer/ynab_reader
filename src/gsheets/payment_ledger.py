@@ -8,10 +8,11 @@ Handles Google Sheets payment operations only.
 import logging
 from datetime import datetime
 from decimal import Decimal
-from typing import Protocol
+from typing import Any, Protocol, cast
 
 import gspread
 from gspread.exceptions import WorksheetNotFound
+from gspread.utils import ValueInputOption
 
 from src.gsheets.ledger import get_gsheets_client
 from src.ynab.ynab_types import PaymentInstruction
@@ -61,6 +62,9 @@ class PaymentLedgerWriter:
     ]
 
     STATUS_OPTIONS = ["Pendiente", "Procesado", "Verificado", "Error"]
+
+    # Large row range for validation and conditional formatting to accommodate future data
+    FORMATTING_ROW_LIMIT = 5000
 
     def __init__(
         self,
@@ -149,8 +153,11 @@ class PaymentLedgerWriter:
             PaymentLedgerError: If formatting operations fail
         """
         try:
-            # Set headers in row 1
-            worksheet.update("A1:K1", [self.HEADERS])  # type: ignore[arg-type]
+            worksheet.update(
+                range_name="A1:K1",
+                values=[self.HEADERS],
+                value_input_option=ValueInputOption.user_entered,
+            )
 
             # Apply header formatting
             worksheet.format(
@@ -176,13 +183,13 @@ class PaymentLedgerWriter:
                         }
                     }
                 },
-                # Add data validation for Status column (I) rows 2-100
+                # Add strict data validation for Status column (I) with extended range
                 {
                     "repeatCell": {
                         "range": {
                             "sheetId": sheet_id,
                             "startRowIndex": 1,  # Row 2 (0-indexed)
-                            "endRowIndex": 100,  # Row 100 (exclusive)
+                            "endRowIndex": self.FORMATTING_ROW_LIMIT,  # Large range for future data (exclusive)
                             "startColumnIndex": 8,  # Column I (0-indexed)
                             "endColumnIndex": 9,  # Column I (exclusive)
                         },
@@ -195,6 +202,7 @@ class PaymentLedgerWriter:
                                         for option in self.STATUS_OPTIONS
                                     ],
                                 },
+                                "strict": True,
                                 "showCustomUi": True,
                             }
                         },
@@ -270,7 +278,7 @@ class PaymentLedgerWriter:
                                 {
                                     "sheetId": sheet_id,
                                     "startRowIndex": 1,  # Row 2 onwards
-                                    "endRowIndex": 5000,  # Large range for future data
+                                    "endRowIndex": self.FORMATTING_ROW_LIMIT,  # Large range for future data
                                     "startColumnIndex": 2,  # Column C (Saldo Actual)
                                     "endColumnIndex": 3,  # Column C only (exclusive)
                                 }
@@ -300,7 +308,7 @@ class PaymentLedgerWriter:
                                 {
                                     "sheetId": sheet_id,
                                     "startRowIndex": 1,  # Row 2 onwards
-                                    "endRowIndex": 5000,  # Large range for future data
+                                    "endRowIndex": self.FORMATTING_ROW_LIMIT,  # Large range for future data
                                     "startColumnIndex": 8,  # Column I (Estado)
                                     "endColumnIndex": 9,  # Column I only (exclusive)
                                 }
@@ -364,7 +372,11 @@ class PaymentLedgerWriter:
 
             if not instructions:
                 # Add "No payments needed" message
-                worksheet.update("A2", [["No hay pagos requeridos en este momento"]])  # type: ignore[arg-type]
+                worksheet.update(
+                    range_name="A2",
+                    values=[["No hay pagos requeridos en este momento"]],
+                    value_input_option=ValueInputOption.user_entered,
+                )
                 self.logger.info("No payment instructions to write")
                 return
 
@@ -374,7 +386,11 @@ class PaymentLedgerWriter:
             # Write all data at once for efficiency
             if data_rows:
                 range_end = f"K{len(data_rows) + 1}"
-                worksheet.update(f"A2:{range_end}", data_rows)  # type: ignore[arg-type]
+                worksheet.update(
+                    range_name=f"A2:{range_end}",
+                    values=data_rows,
+                    value_input_option=ValueInputOption.user_entered,
+                )
                 self.logger.info(f"Wrote {len(data_rows)} payment instructions")
 
             # Add summary section
@@ -468,7 +484,11 @@ class PaymentLedgerWriter:
 
             # Write summary
             end_row = start_row + len(summary_data) - 1
-            worksheet.update(f"A{start_row}:B{end_row}", summary_data)  # type: ignore[arg-type]
+            worksheet.update(
+                range_name=f"A{start_row}:B{end_row}",
+                values=cast(list[list[Any]], summary_data),
+                value_input_option=ValueInputOption.user_entered,
+            )
 
             # Format summary header
             worksheet.format(

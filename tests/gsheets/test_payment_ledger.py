@@ -3,6 +3,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 from gspread.exceptions import WorksheetNotFound
+from gspread.utils import ValueInputOption
 
 from src.gsheets.payment_ledger import (
     PaymentLedgerError,
@@ -134,7 +135,11 @@ class TestPaymentLedgerWriter:
         self.writer.setup_payment_worksheet_formatting(mock_worksheet)
 
         # Assert
-        mock_worksheet.update.assert_called_once_with("A1:K1", [self.writer.HEADERS])
+        mock_worksheet.update.assert_called_once_with(
+            range_name="A1:K1",
+            values=[self.writer.HEADERS],
+            value_input_option=ValueInputOption.user_entered,
+        )
         mock_worksheet.format.assert_called()
 
         # Verify batch_update was called with the correct requests
@@ -168,7 +173,10 @@ class TestPaymentLedgerWriter:
         assert "repeatCell" in validation_request
         assert validation_request["repeatCell"]["range"]["sheetId"] == 123456
         assert validation_request["repeatCell"]["range"]["startRowIndex"] == 1
-        assert validation_request["repeatCell"]["range"]["endRowIndex"] == 100
+        assert (
+            validation_request["repeatCell"]["range"]["endRowIndex"]
+            == self.writer.FORMATTING_ROW_LIMIT
+        )
         assert (
             validation_request["repeatCell"]["range"]["startColumnIndex"] == 8
         )  # Column I
@@ -229,7 +237,9 @@ class TestPaymentLedgerWriter:
         # Assert
         mock_worksheet.batch_clear.assert_called_once_with(["A2:K"])
         mock_worksheet.update.assert_called_with(
-            "A2", [["No hay pagos requeridos en este momento"]]
+            range_name="A2",
+            values=[["No hay pagos requeridos en este momento"]],
+            value_input_option=ValueInputOption.user_entered,
         )
         self.mock_logger.info.assert_called_with("No payment instructions to write")
 
@@ -288,8 +298,8 @@ class TestPaymentLedgerWriter:
         self.mock_logger.info.assert_called_with("Added summary section to worksheet")
 
         # Verify the update call contains partial payment alerts
-        update_call_args = mock_worksheet.update.call_args[0]
-        summary_data = update_call_args[1]
+        update_call_kwargs = mock_worksheet.update.call_args[1]
+        summary_data = update_call_kwargs["values"]
 
         # Check that partial payment info is included
         summary_text = str(summary_data)
@@ -326,8 +336,8 @@ class TestPaymentLedgerWriter:
         )
 
         # Assert
-        update_call_args = mock_worksheet.update.call_args[0]
-        summary_data = update_call_args[1]
+        update_call_kwargs = mock_worksheet.update.call_args[1]
+        summary_data = update_call_kwargs["values"]
         summary_text = str(summary_data)
 
         # Partial payment alerts should not be present
