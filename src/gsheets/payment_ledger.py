@@ -299,7 +299,8 @@ class PaymentLedgerWriter:
         """
         try:
             # Clear existing payment data (keep headers)
-            worksheet.clear("A2:K100")  # type: ignore[call-arg]
+            # Clear entire columns A–K from row 2 downward to avoid stale rows
+            worksheet.batch_clear(["A2:K"])
 
             if not instructions:
                 # Add "No payments needed" message

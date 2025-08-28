@@ -213,7 +213,7 @@ class TestPaymentLedgerWriter:
         )
 
         # Assert
-        mock_worksheet.clear.assert_called_once()
+        mock_worksheet.batch_clear.assert_called_once_with(["A2:K"])
         mock_worksheet.update.assert_called()  # Called for data and summary
         self.mock_logger.info.assert_any_call("Wrote 2 payment instructions")
 
@@ -227,7 +227,7 @@ class TestPaymentLedgerWriter:
         self.writer.write_payment_instructions(mock_worksheet, [], timestamp)
 
         # Assert
-        mock_worksheet.clear.assert_called_once()
+        mock_worksheet.batch_clear.assert_called_once_with(["A2:K"])
         mock_worksheet.update.assert_called_with(
             "A2", [["No hay pagos requeridos en este momento"]]
         )
@@ -237,7 +237,7 @@ class TestPaymentLedgerWriter:
         """Test error handling during instruction writing."""
         # Arrange
         mock_worksheet = Mock()
-        mock_worksheet.clear.side_effect = Exception("Write error")
+        mock_worksheet.batch_clear.side_effect = Exception("Write error")
         timestamp = "2024-01-01 12:00:00"
 
         # Act & Assert
