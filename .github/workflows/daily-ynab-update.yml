@@ -32,7 +32,7 @@ jobs:
         
     - name: Run YNAB Google Sheets update
       run: |
-        python3 update_gsheets.py --testing
+        python3 update_gsheets.py
       env:
         GSHEETS_SERVICE_ACCOUNT_FILE: ./service-account.json
         GSHEETS_SPREADSHEET_ID: ${{ secrets.GSHEETS_SPREADSHEET_ID }}

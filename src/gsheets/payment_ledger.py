@@ -435,22 +435,57 @@ class PaymentLedgerWriter:
     ) -> None:
         """Add summary statistics below the payment data."""
         try:
-            total_debt = sum(abs(inst["amount_due"]) for inst in instructions)
+            # Aggregate by credit card to avoid double-counting
+            # Group instructions by credit card name
+            card_data: dict[str, dict] = {}
+
+            for inst in instructions:
+                card_name = inst["credit_card"]
+                if card_name not in card_data:
+                    card_data[card_name] = {
+                        "max_debt": Decimal("0"),
+                        "min_remaining": Decimal("0"),
+                        "strategies": set(),
+                    }
+
+                # Track max debt (should be same for all instructions of this card)
+                card_data[card_name]["max_debt"] = max(
+                    card_data[card_name]["max_debt"],
+                    abs(inst["amount_due"])
+                )
+
+                # Track min remaining balance (final remainder after all transfers)
+                if card_data[card_name]["min_remaining"] == Decimal("0"):
+                    card_data[card_name]["min_remaining"] = inst["remaining_balance"]
+                else:
+                    card_data[card_name]["min_remaining"] = min(
+                        card_data[card_name]["min_remaining"],
+                        inst["remaining_balance"]
+                    )
+
+                # Track strategies used for this card
+                strategy = inst.get("strategy_used", "priority_ordered")
+                card_data[card_name]["strategies"].add(strategy)
+
+            # Calculate aggregated totals per card
+            total_debt = sum(data["max_debt"] for data in card_data.values())
             total_payments = sum(inst["payment_amount"] for inst in instructions)
             unique_accounts = {inst["payment_source"] for inst in instructions}
-            strategy_counts: dict[str, int] = {}
 
-            # Count partial payments and remaining debt
+            # Count strategy usage across all cards (not instructions)
+            strategy_counts: dict[str, int] = {}
+            for data in card_data.values():
+                for strategy in data["strategies"]:
+                    strategy_counts[strategy] = strategy_counts.get(strategy, 0) + 1
+
+            # Count partial payments and remaining debt per card
             partial_payment_count = 0
             total_unpaid_debt = Decimal("0")
 
-            for inst in instructions:
-                strategy = inst.get("strategy_used", "priority_ordered")
-                strategy_counts[strategy] = strategy_counts.get(strategy, 0) + 1
-
-                if inst["remaining_balance"] > 0:
+            for data in card_data.values():
+                if data["min_remaining"] > 0:
                     partial_payment_count += 1
-                    total_unpaid_debt += inst["remaining_balance"]
+                    total_unpaid_debt += data["min_remaining"]
 
             summary_data = [
                 ["RESUMEN DE PAGOS", ""],

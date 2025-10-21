@@ -1,6 +1,7 @@
 import argparse
 import os
 from datetime import datetime
+from decimal import Decimal
 from zoneinfo import ZoneInfo
 
 import gspread
@@ -113,7 +114,9 @@ def update_ynab_balances(sheet_data, updates: list[YNABEntry], worksheet) -> lis
         row_num = cuenta_to_row.get(cuenta)
         if row_num:
             ynab_cell = worksheet.cell(row_num, ynab_idx)
-            if isinstance(balance, float) and balance.is_integer():
+            if isinstance(balance, Decimal):
+                ynab_cell.value = float(balance)
+            elif isinstance(balance, float) and balance.is_integer():
                 ynab_cell.value = int(balance)
             else:
                 ynab_cell.value = balance
