@@ -344,6 +344,122 @@ class TestPaymentLedgerWriter:
         assert "DEUDA NO PAGADA" not in summary_text
         assert "TARJETAS PARCIALES" not in summary_text
 
+    def test_add_summary_section_multiple_instructions_per_card_no_double_counting(self):
+        """
+        Test that summary totals aggregate per card, not per instruction.
+
+        Regression test: When a card has multiple instructions (multiple source transfers),
+        the total debt should be counted once per card, not once per instruction.
+        Similarly, remaining balance should reflect the final remainder (minimum) per card.
+        """
+        # Arrange
+        mock_worksheet = Mock()
+        timestamp = "2024-01-01 12:00:00"
+        start_row = 5
+
+        # Create scenario: One card paid from two sources
+        # Card has $1000 debt, paid $600 from first source, $400 from second
+        instructions_with_multiple_sources = [
+            PaymentInstruction(
+                credit_card="Chase Sapphire",
+                budget_id="main",
+                amount_due=Decimal("1000.00"),  # Total debt
+                payment_source="Main Checking",
+                payment_amount=Decimal("600.00"),  # First transfer
+                remaining_balance=Decimal("400.00"),  # After first transfer
+                payment_due_date=15,
+                days_until_due=5,
+                rule_type="explicit",
+                strategy_used="priority_ordered",
+                notes="Transfer 1 of 2",
+            ),
+            PaymentInstruction(
+                credit_card="Chase Sapphire",  # Same card
+                budget_id="main",
+                amount_due=Decimal("1000.00"),  # Same total debt
+                payment_source="Emergency Savings",
+                payment_amount=Decimal("400.00"),  # Second transfer
+                remaining_balance=Decimal("0.00"),  # Final remainder after both
+                payment_due_date=15,
+                days_until_due=5,
+                rule_type="explicit",
+                strategy_used="priority_ordered",
+                notes="Transfer 2 of 2",
+            ),
+            # Add another card to ensure aggregation works with multiple cards
+            PaymentInstruction(
+                credit_card="Investment Card",
+                budget_id="secondary",
+                amount_due=Decimal("500.00"),
+                payment_source="Investment Checking",
+                payment_amount=Decimal("300.00"),
+                remaining_balance=Decimal("200.00"),  # Partial payment
+                payment_due_date=20,
+                days_until_due=10,
+                rule_type="default",
+                strategy_used="priority_ordered",
+                notes="",
+            ),
+        ]
+
+        # Act
+        self.writer._add_summary_section(
+            mock_worksheet, instructions_with_multiple_sources, timestamp, start_row
+        )
+
+        # Assert
+        update_call_kwargs = mock_worksheet.update.call_args[1]
+        summary_data = update_call_kwargs["values"]
+
+        # Find the total debt row
+        total_debt_row = None
+        total_payments_row = None
+        unpaid_debt_row = None
+
+        for row in summary_data:
+            if len(row) >= 2:
+                if "Total Deuda:" in str(row[0]):
+                    total_debt_row = row
+                elif "Total Pagos:" in str(row[0]):
+                    total_payments_row = row
+                elif "DEUDA NO PAGADA:" in str(row[0]):
+                    unpaid_debt_row = row
+
+        # Verify total debt is NOT double-counted
+        # Should be $1000 (Chase) + $500 (Investment) = $1500, NOT $2000
+        assert total_debt_row is not None, "Total debt row should exist"
+        assert total_debt_row[1] == 1500.0, (
+            f"Total debt should be $1500 (per card aggregation), "
+            f"got ${total_debt_row[1]}"
+        )
+
+        # Verify total payments sums all individual transfers
+        # Should be $600 + $400 + $300 = $1300
+        assert total_payments_row is not None, "Total payments row should exist"
+        assert total_payments_row[1] == 1300.0, (
+            f"Total payments should be $1300, got ${total_payments_row[1]}"
+        )
+
+        # Verify unpaid debt uses minimum remaining per card
+        # Chase: min(400, 0) = $0, Investment: $200, Total = $200
+        assert unpaid_debt_row is not None, "Unpaid debt row should exist"
+        assert unpaid_debt_row[1] == 200.0, (
+            f"Unpaid debt should be $200 (min remaining per card), "
+            f"got ${unpaid_debt_row[1]}"
+        )
+
+        # Verify partial payment count is per card, not per instruction
+        partial_count_row = None
+        for row in summary_data:
+            if len(row) >= 2 and "TARJETAS PARCIALES:" in str(row[0]):
+                partial_count_row = row
+                break
+
+        assert partial_count_row is not None, "Partial count row should exist"
+        assert "1" in str(partial_count_row[1]), (
+            "Should count 1 card with partial payment, not 2 instructions"
+        )
+
 
 class TestCreatePaymentSummaryFunction:
     """Test the convenience function create_payment_summary."""
