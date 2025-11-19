@@ -6,6 +6,7 @@ Tests for Google Sheets retry decorator following AAA pattern:
 - Act: Execute the function/method being tested
 - Assert: Verify expected behavior
 """
+
 from unittest.mock import Mock, patch
 
 import gspread
@@ -63,9 +64,7 @@ class TestIsRetryableError:
     def test_retryable_502_bad_gateway(self):
         """Test that 502 bad gateway errors are retryable."""
         # Arrange
-        error = gspread.exceptions.APIError(
-            {"code": 502, "message": "Bad gateway"}
-        )
+        error = gspread.exceptions.APIError({"code": 502, "message": "Bad gateway"})
 
         # Act
         result = is_retryable_error(error)
@@ -76,9 +75,7 @@ class TestIsRetryableError:
     def test_retryable_504_gateway_timeout(self):
         """Test that 504 gateway timeout errors are retryable."""
         # Arrange
-        error = gspread.exceptions.APIError(
-            {"code": 504, "message": "Gateway timeout"}
-        )
+        error = gspread.exceptions.APIError({"code": 504, "message": "Gateway timeout"})
 
         # Act
         result = is_retryable_error(error)
@@ -89,9 +86,7 @@ class TestIsRetryableError:
     def test_non_retryable_404_not_found(self):
         """Test that 404 errors are not retryable."""
         # Arrange
-        error = gspread.exceptions.APIError(
-            {"code": 404, "message": "Not found"}
-        )
+        error = gspread.exceptions.APIError({"code": 404, "message": "Not found"})
 
         # Act
         result = is_retryable_error(error)
@@ -102,9 +97,7 @@ class TestIsRetryableError:
     def test_non_retryable_400_bad_request(self):
         """Test that 400 errors are not retryable."""
         # Arrange
-        error = gspread.exceptions.APIError(
-            {"code": 400, "message": "Bad request"}
-        )
+        error = gspread.exceptions.APIError({"code": 400, "message": "Bad request"})
 
         # Act
         result = is_retryable_error(error)
@@ -115,9 +108,7 @@ class TestIsRetryableError:
     def test_non_retryable_403_forbidden(self):
         """Test that 403 errors are not retryable."""
         # Arrange
-        error = gspread.exceptions.APIError(
-            {"code": 403, "message": "Forbidden"}
-        )
+        error = gspread.exceptions.APIError({"code": 403, "message": "Forbidden"})
 
         # Act
         result = is_retryable_error(error)
@@ -166,10 +157,7 @@ class TestRetryConfig:
         """Test custom retry configuration values."""
         # Arrange & Act
         config = RetryConfig(
-            max_retries=5,
-            initial_delay=2.0,
-            max_delay=120.0,
-            exponential_base=3.0
+            max_retries=5, initial_delay=2.0, max_delay=120.0, exponential_base=3.0
         )
 
         # Assert
@@ -251,9 +239,7 @@ class TestRetryOnApiError:
     def test_non_retryable_error_no_retry(self):
         """Test that non-retryable errors are not retried."""
         # Arrange
-        api_error = gspread.exceptions.APIError(
-            {"code": 404, "message": "Not found"}
-        )
+        api_error = gspread.exceptions.APIError({"code": 404, "message": "Not found"})
         self.mock_func.side_effect = api_error
         config = RetryConfig(initial_delay=0.01)
         decorated = retry_on_api_error(config)(self.mock_func)
@@ -283,11 +269,7 @@ class TestRetryOnApiError:
             {"code": 503, "message": "Service unavailable"}
         )
         self.mock_func.side_effect = [api_error, api_error, api_error, "success"]
-        config = RetryConfig(
-            max_retries=3,
-            initial_delay=1.0,
-            exponential_base=2.0
-        )
+        config = RetryConfig(max_retries=3, initial_delay=1.0, exponential_base=2.0)
         decorated = retry_on_api_error(config)(self.mock_func)
 
         # Act
@@ -312,10 +294,7 @@ class TestRetryOnApiError:
         )
         self.mock_func.side_effect = [api_error, api_error, "success"]
         config = RetryConfig(
-            max_retries=3,
-            initial_delay=50.0,
-            max_delay=60.0,
-            exponential_base=2.0
+            max_retries=3, initial_delay=50.0, max_delay=60.0, exponential_base=2.0
         )
         decorated = retry_on_api_error(config)(self.mock_func)
 
@@ -331,6 +310,7 @@ class TestRetryOnApiError:
 
     def test_decorator_preserves_function_metadata(self):
         """Test that decorator preserves original function metadata."""
+
         # Arrange
         def sample_function():
             """Sample docstring."""
@@ -345,6 +325,7 @@ class TestRetryOnApiError:
 
     def test_decorator_with_args_and_kwargs(self):
         """Test that decorator works with functions that have arguments."""
+
         # Arrange
         def add_numbers(a: int, b: int, multiplier: int = 1) -> int:
             return (a + b) * multiplier
