@@ -65,13 +65,14 @@ def is_retryable_error(error: Exception) -> bool:
         # Extract status code from APIError
         # APIError stores response in error.response which has a status_code attribute
         if hasattr(error, "response") and hasattr(error.response, "status_code"):
-            status_code = error.response.status_code
+            status_code: int = error.response.status_code
             return status_code in RETRYABLE_STATUS_CODES
 
         # Fallback: try to parse from error args
         if error.args and isinstance(error.args[0], dict):
-            status_code = error.args[0].get("code")
-            return status_code in RETRYABLE_STATUS_CODES
+            status_code_fallback = error.args[0].get("code")
+            if status_code_fallback is not None:
+                return status_code_fallback in RETRYABLE_STATUS_CODES
 
         return False
     except (AttributeError, KeyError, IndexError):
