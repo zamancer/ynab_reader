@@ -1,0 +1,35 @@
+{
+  "default_payment_sources": {
+    "main": ["Maestra", "Dinn Tarjeta", "CETES"],
+    "secondary": ["Cajita Nu", "Bonddia", "Smartcash"]
+  },
+  "payment_rules": [
+    {
+      "credit_card_name": "Platinum Amex",
+      "budget_id": "main",
+      "debit_sources": ["Maestra", "Dinn Tarjeta", "CETES"],
+      "strategy": "priority_ordered"
+    },
+    {
+      "credit_card_name": "Platinum Amex",
+      "budget_id": "secondary",
+      "debit_sources": ["Cajita Nu"],
+      "strategy": "priority_ordered"
+    },
+    {
+      "credit_card_name": "Hey Credito",
+      "budget_id": "secondary",
+      "debit_sources": ["Payoneer"],
+      "strategy": "priority_ordered"
+    }
+  ],
+  "global_strategy_defaults": {
+    "priority_ordered": {
+      "min_balance": 200
+    },
+    "even_distribution": {
+      "min_payment_per_source": 50,
+      "min_balance": 300
+    }
+  }
+}

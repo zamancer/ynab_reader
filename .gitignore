@@ -132,3 +132,6 @@ dmypy.json
 
 # ignore secret directory
 secrets/
+
+# Banamex MVP: persistent Playwright profile (cookies, session, cache)
+banamex_state/
